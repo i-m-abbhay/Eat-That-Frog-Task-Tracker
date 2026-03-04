@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle2, Flame, TrendingUp, Trash2, Plus, BarChart3, Filter, GripVertical, Layout, Calendar, ChevronLeft, ChevronRight, ChevronDown, Settings, Search, Download, Upload, RotateCcw, Sun, Moon, Monitor, FileText, ListTodo, Undo2, HelpCircle, Repeat } from 'lucide-react';
+import { CheckCircle2, Flame, TrendingUp, Trash2, Plus, BarChart3, Filter, GripVertical, Layout, Calendar, ChevronLeft, ChevronRight, ChevronDown, Settings, Search, Download, Upload, RotateCcw, Sun, Moon, Monitor, FileText, ListTodo, Undo2, HelpCircle, Repeat, Menu, X } from 'lucide-react';
 import { storage } from './storage';
 import {
   toDateKey,
@@ -73,19 +73,19 @@ function ScheduleTaskCard({
           {!compact && <span className="text-gray-400 text-xs hidden sm:inline">{getStatusLabel(task.status)}</span>}
           <button
             onClick={() => setFrog(task.id)}
-            className={`p-1 rounded transition-all ${
-              task.isFrog ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-400 hover:bg-orange-100 hover:text-orange-500'
+            className={`min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 p-2 sm:p-1 rounded-lg sm:rounded transition-all touch-manipulation flex items-center justify-center ${
+              task.isFrog ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-400 hover:bg-orange-100 hover:text-orange-500 active:bg-orange-200'
             }`}
             title="Mark as frog"
           >
-            <Flame className="w-3 h-3" />
+            <Flame className="w-4 h-4 sm:w-3 sm:h-3" />
           </button>
           <button
             onClick={() => deleteTask(task.id)}
-            className="p-1 rounded bg-gray-100 text-gray-400 hover:bg-red-100 hover:text-red-600 transition-all"
+            className="min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 p-2 sm:p-1 rounded-lg sm:rounded bg-gray-100 text-gray-400 hover:bg-red-100 hover:text-red-600 active:bg-red-200 transition-all touch-manipulation flex items-center justify-center"
             title="Delete"
           >
-            <Trash2 className="w-3 h-3" />
+            <Trash2 className="w-4 h-4 sm:w-3 sm:h-3" />
           </button>
         </div>
       </div>
@@ -131,6 +131,7 @@ export default function EatThatFrog() {
   const [confirmDeleteId, setConfirmDeleteId] = useState(null); // show in-task confirmation instead of window.confirm
   const [expandedNotesTaskId, setExpandedNotesTaskId] = useState(null);
   const [expandedSubtasksTaskId, setExpandedSubtasksTaskId] = useState(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const statuses = ['todo', 'progress', 'done'];
   const priorities = ['A', 'B', 'C', 'D', 'E'];
@@ -623,7 +624,7 @@ export default function EatThatFrog() {
   const isViewingThisMonth = scheduleRange === 'monthly' && getMonthStart(focusDate) === getMonthStart(todayKey);
 
   return (
-    <div className={`min-h-screen p-4 md:p-6 font-sans theme-root ${effectiveTheme === 'light' ? 'theme-light bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100' : 'bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900'}`}>
+    <div className={`min-h-screen font-sans theme-root pt-[max(1rem,env(safe-area-inset-top))] pr-[max(1rem,env(safe-area-inset-right))] pb-[max(1rem,env(safe-area-inset-bottom))] pl-[max(1rem,env(safe-area-inset-left))] md:pt-[max(1.5rem,env(safe-area-inset-top))] md:pr-[max(1.5rem,env(safe-area-inset-right))] md:pb-[max(1.5rem,env(safe-area-inset-bottom))] md:pl-[max(1.5rem,env(safe-area-inset-left))] ${effectiveTheme === 'light' ? 'theme-light bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100' : 'bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900'}`}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; }
@@ -709,85 +710,161 @@ export default function EatThatFrog() {
 
       <div className="max-w-[1800px] mx-auto">
         {/* Header */}
-        <div className="mb-6 animate-[slideIn_0.4s_ease-out]">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Flame className="w-12 h-12 text-orange-500" />
-              <div>
+        <div className="mb-4 md:mb-6 animate-[slideIn_0.4s_ease-out]">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+              <Flame className="w-9 h-9 sm:w-12 sm:h-12 text-orange-500 flex-shrink-0" />
+              <div className="min-w-0">
                 <h1
-                  className="text-5xl font-bold text-white"
-                  style={{ fontFamily: "'Bebas Neue', sans-serif", letterSpacing: '2px' }}
+                  className="text-2xl sm:text-4xl md:text-5xl font-bold text-white truncate"
+                  style={{ fontFamily: "'Bebas Neue', sans-serif", letterSpacing: '1px' }}
                 >
                   EAT THAT FROG
                 </h1>
-                <p className="text-gray-400 text-sm">ABCDE Priority Matrix • Kanban Board</p>
+                <p className="text-gray-400 text-xs sm:text-sm hidden sm:block">ABCDE Priority Matrix • Kanban Board</p>
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            {/* Desktop nav */}
+            <div className="hidden md:flex items-center gap-2 lg:gap-3">
               <button
                 onClick={() => setView('kanban')}
-                className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                className={`px-3 py-2 rounded-lg font-semibold transition-all text-sm ${
                   view === 'kanban' ? 'bg-orange-500 text-white' : 'bg-slate-700 text-gray-300 hover:bg-slate-600'
                 }`}
               >
-                <Layout className="w-4 h-4 inline mr-2" />
+                <Layout className="w-4 h-4 inline mr-1.5" />
                 Board
               </button>
               <button
                 onClick={() => { setView('schedule'); setFocusDate(getTodayKey()); }}
-                className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                className={`px-3 py-2 rounded-lg font-semibold transition-all text-sm ${
                   view === 'schedule' ? 'bg-orange-500 text-white' : 'bg-slate-700 text-gray-300 hover:bg-slate-600'
                 }`}
               >
-                <Calendar className="w-4 h-4 inline mr-2" />
+                <Calendar className="w-4 h-4 inline mr-1.5" />
                 Schedule
               </button>
               <button
                 onClick={() => setView('analytics')}
-                className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                className={`px-3 py-2 rounded-lg font-semibold transition-all text-sm ${
                   view === 'analytics' ? 'bg-orange-500 text-white' : 'bg-slate-700 text-gray-300 hover:bg-slate-600'
                 }`}
               >
-                <BarChart3 className="w-4 h-4 inline mr-2" />
+                <BarChart3 className="w-4 h-4 inline mr-1.5" />
                 Analytics
               </button>
               <button
                 onClick={() => setView('about')}
-                className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                className={`px-3 py-2 rounded-lg font-semibold transition-all text-sm ${
                   view === 'about' ? 'bg-orange-500 text-white' : 'bg-slate-700 text-gray-300 hover:bg-slate-600'
                 }`}
               >
-                <FileText className="w-4 h-4 inline mr-2" />
+                <FileText className="w-4 h-4 inline mr-1.5" />
                 About
               </button>
               <button
                 onClick={() => setView('settings')}
-                className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                className={`px-3 py-2 rounded-lg font-semibold transition-all text-sm ${
                   view === 'settings' ? 'bg-orange-500 text-white' : 'bg-slate-700 text-gray-300 hover:bg-slate-600'
                 }`}
               >
-                <Settings className="w-4 h-4 inline mr-2" />
+                <Settings className="w-4 h-4 inline mr-1.5" />
                 Settings
               </button>
               <button
                 onClick={() => setShowShortcuts((s) => !s)}
-                className={`p-2 rounded-lg transition-all ${showShortcuts ? 'bg-orange-500 text-white' : 'bg-slate-700 text-gray-300 hover:bg-slate-600'}`}
+                className="p-2 rounded-lg transition-all bg-slate-700 text-gray-300 hover:bg-slate-600"
                 title="Keyboard shortcuts (?)"
               >
                 <HelpCircle className="w-5 h-5" />
               </button>
             </div>
+
+            {/* Mobile: hamburger (min 44px touch target) */}
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen((o) => !o)}
+              className="md:hidden flex items-center justify-center w-11 h-11 rounded-xl bg-slate-700 text-gray-300 hover:bg-slate-600 active:bg-slate-500 transition-colors touch-manipulation"
+              aria-label="Open menu"
+              aria-expanded={mobileMenuOpen}
+            >
+              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
           </div>
+        </div>
+
+        {/* Mobile nav overlay */}
+        {mobileMenuOpen && (
+          <div
+            className="fixed inset-0 z-40 md:hidden bg-black/50 backdrop-blur-sm animate-[slideIn_0.2s_ease-out]"
+            onClick={() => setMobileMenuOpen(false)}
+            aria-hidden="true"
+          />
+        )}
+        <div
+          className={`fixed top-0 right-0 z-40 w-full max-w-[280px] h-full bg-slate-800 border-l border-slate-600 shadow-2xl transform transition-transform duration-200 ease-out md:hidden pt-[calc(1rem+env(safe-area-inset-top))] pb-[env(safe-area-inset-bottom)] ${
+            mobileMenuOpen ? 'translate-x-0' : 'translate-x-full'
+          }`}
+          aria-modal="true"
+          aria-label="Navigation menu"
+        >
+          <div className="px-4 py-2 flex items-center justify-between border-b border-slate-600">
+            <span className="text-gray-400 font-medium text-sm">Menu</span>
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(false)}
+              className="w-11 h-11 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-slate-700 touch-manipulation"
+              aria-label="Close menu"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <nav className="p-3 space-y-1">
+            {[
+              { id: 'kanban', label: 'Board', icon: Layout },
+              { id: 'schedule', label: 'Schedule', icon: Calendar, onSelect: () => setFocusDate(getTodayKey()) },
+              { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+              { id: 'about', label: 'About', icon: FileText },
+              { id: 'settings', label: 'Settings', icon: Settings },
+            ].map(({ id, label, icon: Icon, onSelect }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => {
+                  setView(id);
+                  onSelect?.();
+                  setMobileMenuOpen(false);
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-left font-medium transition-colors touch-manipulation min-h-[44px] ${
+                  view === id ? 'bg-orange-500 text-white' : 'text-gray-300 hover:bg-slate-700 active:bg-slate-600'
+                }`}
+              >
+                <Icon className="w-5 h-5 flex-shrink-0" />
+                {label}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => {
+                setShowShortcuts(true);
+                setMobileMenuOpen(false);
+              }}
+              className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-left font-medium text-gray-300 hover:bg-slate-700 active:bg-slate-600 transition-colors touch-manipulation min-h-[44px]"
+            >
+              <HelpCircle className="w-5 h-5 flex-shrink-0" />
+              Shortcuts
+            </button>
+          </nav>
         </div>
 
         {/* Keyboard shortcuts modal */}
         {showShortcuts && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60" onClick={() => setShowShortcuts(false)}>
-            <div className="bg-slate-800 rounded-xl p-6 max-w-md w-full shadow-2xl border border-slate-600" onClick={(e) => e.stopPropagation()}>
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60" onClick={() => setShowShortcuts(false)}>
+            <div className="bg-slate-800 rounded-t-2xl sm:rounded-xl p-6 max-w-md w-full max-h-[85vh] overflow-y-auto shadow-2xl border border-slate-600 sm:border-t" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-bold text-white">Keyboard shortcuts</h3>
-                <button onClick={() => setShowShortcuts(false)} className="text-gray-400 hover:text-white">×</button>
+                <button onClick={() => setShowShortcuts(false)} className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-slate-700 touch-manipulation -mr-2" aria-label="Close">×</button>
               </div>
               <ul className="space-y-2 text-sm text-gray-300">
                 <li><kbd className="px-1.5 py-0.5 bg-slate-700 rounded">N</kbd> or <kbd className="px-1.5 py-0.5 bg-slate-700 rounded">/</kbd> — Focus quick-add</li>
@@ -803,22 +880,22 @@ export default function EatThatFrog() {
           <>
             {/* Today's Frog Banner */}
             {todaysFrog && (
-              <div className="mb-6 bg-gradient-to-r from-orange-600 to-red-600 rounded-xl p-6 text-white shadow-2xl frog-glow">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <Flame className="w-10 h-10" />
-                    <div>
-                      <div className="text-sm font-semibold opacity-90 uppercase tracking-wider">
-                        Today's Frog
+              <div className="mb-4 md:mb-6 bg-gradient-to-r from-orange-600 to-red-600 rounded-xl p-4 sm:p-6 text-white shadow-2xl frog-glow">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="flex items-start gap-3 sm:gap-4 min-w-0">
+                    <Flame className="w-9 h-9 sm:w-10 sm:h-10 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <div className="text-xs sm:text-sm font-semibold opacity-90 uppercase tracking-wider">
+                        Today&apos;s Frog
                       </div>
-                      <div className="text-2xl font-bold">{todaysFrog.text}</div>
+                      <div className="text-lg sm:text-2xl font-bold break-words">{todaysFrog.text}</div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="px-4 py-2 bg-white/20 rounded-lg text-sm font-bold">
+                  <div className="flex flex-wrap gap-2 sm:gap-3">
+                    <span className="px-3 py-1.5 sm:px-4 sm:py-2 bg-white/20 rounded-lg text-xs sm:text-sm font-bold">
                       Priority {todaysFrog.priority}
                     </span>
-                    <span className="px-4 py-2 bg-white/20 rounded-lg text-sm font-bold">
+                    <span className="px-3 py-1.5 sm:px-4 sm:py-2 bg-white/20 rounded-lg text-xs sm:text-sm font-bold">
                       {getStatusLabel(todaysFrog.status)}
                     </span>
                   </div>
@@ -827,51 +904,47 @@ export default function EatThatFrog() {
             )}
 
             {/* Filters + Search */}
-            <div className="mb-6 bg-slate-800 rounded-xl p-4 flex flex-wrap items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <Filter className="w-5 h-5 text-gray-400 flex-shrink-0" />
+            <div className="mb-4 md:mb-6 bg-slate-800 rounded-xl p-3 sm:p-4 flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3 sm:gap-4">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-4 order-2 sm:order-1">
+                <Filter className="w-5 h-5 text-gray-400 flex-shrink-0 hidden sm:block" />
                 <div className="flex items-center gap-2">
-                  <span className="text-gray-400 text-sm font-semibold">Filter:</span>
                   <button
                     onClick={() => setFilterFrog(!filterFrog)}
-                    className={`px-3 py-1 rounded-lg text-sm font-semibold transition-all ${
-                      filterFrog ? 'bg-orange-500 text-white' : 'bg-slate-700 text-gray-300 hover:bg-slate-600'
+                    className={`min-h-[44px] sm:min-h-0 px-3 py-2.5 sm:py-1 rounded-xl sm:rounded-lg text-sm font-semibold transition-all touch-manipulation ${
+                      filterFrog ? 'bg-orange-500 text-white' : 'bg-slate-700 text-gray-300 hover:bg-slate-600 active:bg-slate-500'
                     }`}
                   >
-                    <Flame className="w-4 h-4 inline mr-1" />
-                    Frogs Only
+                    <Flame className="w-4 h-4 inline mr-1.5" />
+                    Frogs
                   </button>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-gray-400 text-sm font-semibold">Priority:</span>
                   <select
                     value={filterPriority}
                     onChange={(e) => setFilterPriority(e.target.value)}
-                    className="px-3 py-1 bg-slate-700 text-gray-300 rounded-lg text-sm font-semibold border-none focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    className="min-h-[44px] sm:min-h-0 px-3 py-2.5 sm:py-1 bg-slate-700 text-gray-300 rounded-xl sm:rounded-lg text-sm font-semibold border-none focus:outline-none focus:ring-2 focus:ring-orange-500 touch-manipulation"
                   >
                     <option value="all">All</option>
-                    <option value="A">A - Must Do</option>
-                    <option value="B">B - Should Do</option>
-                    <option value="C">C - Nice to Do</option>
-                    <option value="D">D - Delegate</option>
-                    <option value="E">E - Eliminate</option>
+                    <option value="A">A</option>
+                    <option value="B">B</option>
+                    <option value="C">C</option>
+                    <option value="D">D</option>
+                    <option value="E">E</option>
                   </select>
                 </div>
               </div>
-              <div className="relative min-w-[200px] flex-1 max-w-sm ml-auto">
+              <div className="relative flex-1 min-w-0 order-1 sm:order-2 sm:min-w-[200px] sm:max-w-sm sm:ml-auto">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search tasks..."
-                  className="w-full pl-10 pr-8 py-2 bg-slate-700 text-white rounded-lg border-2 border-slate-600 focus:border-orange-500 focus:outline-none text-sm"
+                  className="w-full pl-10 pr-10 py-2.5 sm:py-2 bg-slate-700 text-white rounded-xl sm:rounded-lg border-2 border-slate-600 focus:border-orange-500 focus:outline-none text-sm min-h-[44px] sm:min-h-0 touch-manipulation"
                 />
                 {searchQuery && (
                   <button
                     type="button"
                     onClick={() => setSearchQuery('')}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white p-1"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg touch-manipulation"
                     aria-label="Clear search"
                   >
                     ×
@@ -884,52 +957,54 @@ export default function EatThatFrog() {
             )}
 
             {/* Quick Add Bar */}
-            <div className="mb-6 bg-slate-800 rounded-xl p-4">
-              <div className="flex gap-3">
+            <div className="mb-4 md:mb-6 bg-slate-800 rounded-xl p-3 sm:p-4">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                 <input
                   ref={quickAddInputRef}
                   type="text"
                   value={quickAddText}
                   onChange={(e) => setQuickAddText(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && quickAdd()}
-                  placeholder="Quick add task... (or press N or / to focus)"
-                  className="flex-1 px-4 py-2 bg-slate-700 text-white rounded-lg border-2 border-slate-600 focus:border-orange-500 focus:outline-none"
+                  placeholder="Quick add task..."
+                  className="flex-1 min-w-0 px-4 py-3 sm:py-2 bg-slate-700 text-white rounded-xl sm:rounded-lg border-2 border-slate-600 focus:border-orange-500 focus:outline-none text-base sm:text-sm min-h-[48px] sm:min-h-0 touch-manipulation"
                 />
-                <select
-                  value={quickAddPriority || ''}
-                  onChange={(e) => setQuickAddPriority(e.target.value)}
-                  className="px-4 py-2 bg-slate-700 text-white rounded-lg border-2 border-slate-600 focus:border-orange-500 focus:outline-none"
-                >
-                  <option value="">Priority</option>
-                  <option value="A">A</option>
-                  <option value="B">B</option>
-                  <option value="C">C</option>
-                  <option value="D">D</option>
-                  <option value="E">E</option>
-                </select>
-                <select
-                  value={quickAddColumn || ''}
-                  onChange={(e) => setQuickAddColumn(e.target.value)}
-                  className="px-4 py-2 bg-slate-700 text-white rounded-lg border-2 border-slate-600 focus:border-orange-500 focus:outline-none"
-                >
-                  <option value="">Status</option>
-                  <option value="todo">To Do</option>
-                  <option value="progress">In Progress</option>
-                  <option value="done">Done</option>
-                </select>
-                <input
-                  type="date"
-                  value={quickAddDate}
-                  onChange={(e) => setQuickAddDate(e.target.value)}
-                  className="px-4 py-2 bg-slate-700 text-white rounded-lg border-2 border-slate-600 focus:border-orange-500 focus:outline-none min-w-[140px]"
-                  title="Optional: schedule for a specific day"
-                />
-                <button
-                  onClick={quickAdd}
-                  className="px-6 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors font-semibold"
-                >
-                  <Plus className="w-5 h-5" />
-                </button>
+                <div className="flex flex-wrap gap-2 sm:gap-3 items-center">
+                  <select
+                    value={quickAddPriority || ''}
+                    onChange={(e) => setQuickAddPriority(e.target.value)}
+                    className="flex-1 sm:flex-none min-w-0 px-3 py-2.5 sm:py-2 bg-slate-700 text-white rounded-xl sm:rounded-lg border-2 border-slate-600 focus:border-orange-500 focus:outline-none text-sm min-h-[44px] sm:min-h-0 touch-manipulation"
+                  >
+                    <option value="">Priority</option>
+                    <option value="A">A</option>
+                    <option value="B">B</option>
+                    <option value="C">C</option>
+                    <option value="D">D</option>
+                    <option value="E">E</option>
+                  </select>
+                  <select
+                    value={quickAddColumn || ''}
+                    onChange={(e) => setQuickAddColumn(e.target.value)}
+                    className="flex-1 sm:flex-none min-w-0 px-3 py-2.5 sm:py-2 bg-slate-700 text-white rounded-xl sm:rounded-lg border-2 border-slate-600 focus:border-orange-500 focus:outline-none text-sm min-h-[44px] sm:min-h-0 touch-manipulation"
+                  >
+                    <option value="">Status</option>
+                    <option value="todo">To Do</option>
+                    <option value="progress">In Progress</option>
+                    <option value="done">Done</option>
+                  </select>
+                  <input
+                    type="date"
+                    value={quickAddDate}
+                    onChange={(e) => setQuickAddDate(e.target.value)}
+                    className="flex-1 sm:flex-none min-w-0 px-3 py-2.5 sm:py-2 bg-slate-700 text-white rounded-xl sm:rounded-lg border-2 border-slate-600 focus:border-orange-500 focus:outline-none text-sm min-h-[44px] sm:min-h-0 touch-manipulation sm:min-w-[140px]"
+                    title="Optional: schedule for a specific day"
+                  />
+                  <button
+                    onClick={quickAdd}
+                    className="flex items-center justify-center min-h-[48px] sm:min-h-0 px-5 py-2.5 sm:py-2 bg-orange-500 text-white rounded-xl sm:rounded-lg hover:bg-orange-600 active:bg-orange-700 transition-colors font-semibold touch-manipulation shrink-0"
+                  >
+                    <Plus className="w-6 h-6 sm:w-5 sm:h-5" />
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -943,31 +1018,31 @@ export default function EatThatFrog() {
             )}
 
             {/* Kanban Matrix */}
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto -mx-2 px-2 sm:mx-0 sm:px-0 overflow-y-visible touch-pan-x">
               <div className="inline-flex gap-1 min-w-full">
                 {/* Header Column for Priority Labels */}
-                <div className="w-32 flex-shrink-0">
-                  <div className="h-14 bg-slate-800 rounded-t-lg mb-1"></div>
+                <div className="w-20 sm:w-28 md:w-32 flex-shrink-0">
+                  <div className="h-12 sm:h-14 bg-slate-800 rounded-t-lg mb-1"></div>
                   {priorities.map((priority) => (
                     <React.Fragment key={priority}>
                       <div
                         style={{ height: rowHeights[priority] }}
                         className="bg-slate-800 rounded-lg mb-0 flex items-center justify-center flex-shrink-0"
                       >
-                        <div className="text-center">
+                        <div className="text-center px-0.5">
                           <div
-                            className={`text-3xl font-bold mb-1 ${getPriorityBadgeColor(priority)} w-12 h-12 rounded-lg flex items-center justify-center mx-auto`}
+                            className={`text-xl sm:text-2xl md:text-3xl font-bold mb-0.5 sm:mb-1 ${getPriorityBadgeColor(priority)} w-9 h-9 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-lg flex items-center justify-center mx-auto`}
                           >
                             {priority}
                           </div>
-                          <div className="text-xs text-gray-400 font-semibold">{getPriorityLabel(priority)}</div>
+                          <div className="text-[10px] sm:text-xs text-gray-400 font-semibold leading-tight">{getPriorityLabel(priority)}</div>
                         </div>
                       </div>
                       <div
                         role="separator"
                         aria-label={`Resize row ${priority}`}
                         onMouseDown={(e) => handleResizeStart(priority, e)}
-                        className={`kanban-resize-handle flex-shrink-0 cursor-ns-resize flex flex-col items-center justify-center gap-0.5 py-1.5 mb-1 rounded-md select-none ${resizingPriority === priority ? 'active bg-orange-500 text-white' : 'bg-slate-700/80 hover:bg-slate-600 text-slate-400'}`}
+                        className={`kanban-resize-handle hidden md:flex flex-shrink-0 cursor-ns-resize flex-col items-center justify-center gap-0.5 py-1.5 mb-1 rounded-md select-none ${resizingPriority === priority ? 'active bg-orange-500 text-white' : 'bg-slate-700/80 hover:bg-slate-600 text-slate-400'}`}
                         title="Drag to resize row"
                       >
                         <span className="grip-line" />
@@ -980,7 +1055,7 @@ export default function EatThatFrog() {
 
                 {/* Status Columns */}
                 {statuses.map((status) => (
-                  <div key={status} className="flex-1 min-w-[280px]">
+                  <div key={status} className="flex-1 min-w-[200px] sm:min-w-[240px] md:min-w-[280px]">
                     <div className="h-14 bg-slate-800 rounded-t-lg mb-1 flex items-center justify-center">
                       <div className="text-center">
                         <div className="text-white font-bold text-lg uppercase tracking-wider">
@@ -997,17 +1072,29 @@ export default function EatThatFrog() {
                         <React.Fragment key={`${status}-${priority}`}>
                         <div
                           style={{ height: rowHeights[priority] }}
-                          className={`kanban-column ${getPriorityColor(priority)} border-2 rounded-lg mb-0 p-2 overflow-y-auto flex-shrink-0 ${
+                          className={`kanban-column group ${getPriorityColor(priority)} border-2 rounded-lg mb-0 p-2 overflow-y-auto flex-shrink-0 ${
                             dragOverCell?.status === status && dragOverCell?.priority === priority ? 'drag-over' : ''
                           } ${addTaskCell?.status === status && addTaskCell?.priority === priority ? 'ring-2 ring-orange-500 ring-inset' : ''}`}
                           onDragOver={(e) => handleDragOver(e, status, priority)}
                           onDragLeave={handleDragLeave}
                           onDrop={(e) => handleDrop(e, status, priority)}
                           onDoubleClick={(e) => {
-                            if (!e.target.closest('.task-card')) setAddTaskCell({ status, priority });
+                            if (!e.target.closest('.task-card') && !e.target.closest('.cell-add-btn')) setAddTaskCell({ status, priority });
                           }}
                           title="Double-click to add a task here"
                         >
+                          {/* Visible "Add task" button for mobile (single-tap); double-click still works on desktop */}
+                          {addTaskCell?.status !== status || addTaskCell?.priority !== priority ? (
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); setAddTaskCell({ status, priority }); }}
+                              className="cell-add-btn w-full flex items-center justify-center gap-1.5 py-2.5 px-2 mb-2 rounded-lg border-2 border-dashed border-slate-400 text-slate-500 hover:border-orange-400 hover:text-orange-500 hover:bg-orange-500/10 active:bg-orange-500/20 transition-colors text-sm font-medium min-h-[44px] md:min-h-0 md:py-1.5 touch-manipulation"
+                              title="Add task in this cell (or double-tap empty area)"
+                            >
+                              <Plus className="w-4 h-4 flex-shrink-0" />
+                              <span>Add task</span>
+                            </button>
+                          ) : null}
                           {addTaskCell?.status === status && addTaskCell?.priority === priority && (
                             <div className="mb-2">
                               <input
@@ -1106,20 +1193,20 @@ export default function EatThatFrog() {
                                         <Repeat className="w-3 h-3 text-gray-400 flex-shrink-0" title={`Repeats ${task.recurrence}`} />
                                       )}
                                     </div>
-                                    <div className="flex gap-0.5 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                                    <div className="flex gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                                       <button
                                         onClick={() => setFrog(task.id)}
-                                        className={`p-1 rounded ${task.isFrog ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-400 hover:bg-orange-100 hover:text-orange-500'}`}
+                                        className={`min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 p-2 sm:p-1 rounded-lg sm:rounded flex items-center justify-center touch-manipulation ${task.isFrog ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-400 hover:bg-orange-100 hover:text-orange-500 active:bg-orange-200'}`}
                                         title="Mark as frog"
                                       >
-                                        <Flame className="w-3 h-3" />
+                                        <Flame className="w-4 h-4 sm:w-3 sm:h-3" />
                                       </button>
                                       <button
                                         onClick={() => setConfirmDeleteId(task.id)}
-                                        className="p-1 rounded bg-gray-100 text-gray-400 hover:bg-red-100 hover:text-red-600"
+                                        className="min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 p-2 sm:p-1 rounded-lg sm:rounded bg-gray-100 text-gray-400 hover:bg-red-100 hover:text-red-600 flex items-center justify-center touch-manipulation active:bg-red-200"
                                         title="Delete"
                                       >
-                                        <Trash2 className="w-3 h-3" />
+                                        <Trash2 className="w-4 h-4 sm:w-3 sm:h-3" />
                                       </button>
                                     </div>
                                   </div>
@@ -1166,21 +1253,21 @@ export default function EatThatFrog() {
                                   <div className="flex gap-1 flex-shrink-0">
                                     <button
                                       onClick={() => setFrog(task.id)}
-                                      className={`p-1 rounded transition-all ${
+                                      className={`min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 p-2 sm:p-1 rounded-lg sm:rounded flex items-center justify-center transition-all touch-manipulation ${
                                         task.isFrog
                                           ? 'bg-orange-500 text-white'
-                                          : 'bg-gray-100 text-gray-400 hover:bg-orange-100 hover:text-orange-500'
+                                          : 'bg-gray-100 text-gray-400 hover:bg-orange-100 hover:text-orange-500 active:bg-orange-200'
                                       }`}
                                       title="Mark as frog"
                                     >
-                                      <Flame className="w-3 h-3" />
+                                      <Flame className="w-4 h-4 sm:w-3 sm:h-3" />
                                     </button>
                                     <button
                                       onClick={() => setConfirmDeleteId(task.id)}
-                                      className="p-1 rounded bg-gray-100 text-gray-400 hover:bg-red-100 hover:text-red-600 transition-all"
+                                      className="min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 p-2 sm:p-1 rounded-lg sm:rounded bg-gray-100 text-gray-400 hover:bg-red-100 hover:text-red-600 flex items-center justify-center transition-all touch-manipulation active:bg-red-200"
                                       title="Delete"
                                     >
-                                      <Trash2 className="w-3 h-3" />
+                                      <Trash2 className="w-4 h-4 sm:w-3 sm:h-3" />
                                     </button>
                                   </div>
                                 </div>
@@ -1275,7 +1362,7 @@ export default function EatThatFrog() {
                           role="separator"
                           aria-label={`Resize row ${priority}`}
                           onMouseDown={(e) => handleResizeStart(priority, e)}
-                          className={`kanban-resize-handle flex-shrink-0 cursor-ns-resize flex flex-col items-center justify-center gap-0.5 py-1.5 mb-1 rounded-md select-none ${resizingPriority === priority ? 'active bg-orange-500 text-white' : 'bg-slate-700/80 hover:bg-slate-600 text-slate-400'}`}
+                          className={`kanban-resize-handle hidden md:flex flex-shrink-0 cursor-ns-resize flex-col items-center justify-center gap-0.5 py-1.5 mb-1 rounded-md select-none ${resizingPriority === priority ? 'active bg-orange-500 text-white' : 'bg-slate-700/80 hover:bg-slate-600 text-slate-400'}`}
                           title="Drag to resize row"
                         >
                           <span className="grip-line" />
@@ -1365,15 +1452,15 @@ export default function EatThatFrog() {
             </div>
 
             {/* Schedule sub-tabs + date navigation */}
-            <div className="bg-slate-800 rounded-xl p-4">
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <div className="flex items-center gap-2">
+            <div className="bg-slate-800 rounded-xl p-3 sm:p-4">
+              <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center justify-between gap-3">
+                <div className="flex gap-2">
                   {(['daily', 'weekly', 'monthly']).map((range) => (
                     <button
                       key={range}
                       onClick={() => setScheduleRange(range)}
-                      className={`px-4 py-2 rounded-lg font-semibold capitalize transition-all ${
-                        scheduleRange === range ? 'bg-orange-500 text-white' : 'bg-slate-700 text-gray-300 hover:bg-slate-600'
+                      className={`flex-1 sm:flex-none min-h-[44px] sm:min-h-0 px-3 py-2.5 sm:py-2 rounded-xl sm:rounded-lg font-semibold capitalize transition-all touch-manipulation ${
+                        scheduleRange === range ? 'bg-orange-500 text-white' : 'bg-slate-700 text-gray-300 hover:bg-slate-600 active:bg-slate-500'
                       }`}
                     >
                       {range === 'daily' ? 'Day' : range === 'weekly' ? 'Week' : 'Month'}
@@ -1383,24 +1470,24 @@ export default function EatThatFrog() {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setFocusDate(scheduleRange === 'daily' ? addDays(focusDate, -1) : scheduleRange === 'weekly' ? addWeeks(focusDate, -1) : addMonths(focusDate, -1))}
-                    className="p-2 rounded-lg bg-slate-700 text-gray-300 hover:bg-slate-600 transition-colors"
+                    className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl sm:rounded-lg bg-slate-700 text-gray-300 hover:bg-slate-600 active:bg-slate-500 transition-colors touch-manipulation"
                     aria-label="Previous"
                   >
                     <ChevronLeft className="w-5 h-5" />
                   </button>
                   <button
                     onClick={goToToday}
-                    className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                    className={`flex-1 min-h-[44px] sm:min-h-0 px-4 py-2.5 sm:py-2 rounded-xl sm:rounded-lg font-semibold transition-all touch-manipulation ${
                       (scheduleRange === 'daily' && isViewingToday) || (scheduleRange === 'weekly' && isViewingThisWeek) || (scheduleRange === 'monthly' && isViewingThisMonth)
                         ? 'bg-orange-500 text-white'
-                        : 'bg-slate-700 text-gray-300 hover:bg-slate-600'
+                        : 'bg-slate-700 text-gray-300 hover:bg-slate-600 active:bg-slate-500'
                     }`}
                   >
                     {scheduleRange === 'daily' ? 'Today' : scheduleRange === 'weekly' ? 'This week' : 'This month'}
                   </button>
                   <button
                     onClick={() => setFocusDate(scheduleRange === 'daily' ? addDays(focusDate, 1) : scheduleRange === 'weekly' ? addWeeks(focusDate, 1) : addMonths(focusDate, 1))}
-                    className="p-2 rounded-lg bg-slate-700 text-gray-300 hover:bg-slate-600 transition-colors"
+                    className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl sm:rounded-lg bg-slate-700 text-gray-300 hover:bg-slate-600 active:bg-slate-500 transition-colors touch-manipulation"
                     aria-label="Next"
                   >
                     <ChevronRight className="w-5 h-5" />

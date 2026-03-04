@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle2, Flame, TrendingUp, Trash2, Plus, BarChart3, Filter, GripVertical, Layout, Calendar, ChevronLeft, ChevronRight, ChevronDown, Settings, Search, Download, Upload, RotateCcw, Sun, Moon, Monitor, FileText, ListTodo, Undo2, HelpCircle, Repeat, Menu, X } from 'lucide-react';
+import { CheckCircle2, Flame, TrendingUp, Trash2, Plus, BarChart3, Filter, GripVertical, Layout, Calendar, ChevronLeft, ChevronRight, ChevronDown, Settings, Search, Download, Upload, RotateCcw, Sun, Moon, Monitor, FileText, ListTodo, Undo2, HelpCircle, Repeat, Menu, X, ArrowRightLeft, Pencil } from 'lucide-react';
 import { storage } from './storage';
 import {
   toDateKey,
@@ -132,6 +132,33 @@ export default function EatThatFrog() {
   const [expandedNotesTaskId, setExpandedNotesTaskId] = useState(null);
   const [expandedSubtasksTaskId, setExpandedSubtasksTaskId] = useState(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isMobileView, setIsMobileView] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches
+  );
+  const [moveMenuTaskId, setMoveMenuTaskId] = useState(null);
+  const [addSheetCell, setAddSheetCell] = useState(null);
+  const [addSheetForm, setAddSheetForm] = useState({ text: '', status: 'todo', priority: 'A', date: '' });
+  const [editSheetTaskId, setEditSheetTaskId] = useState(null);
+  const [editSheetForm, setEditSheetForm] = useState({ text: '', status: 'todo', priority: 'A', scheduledDate: '', notes: '', recurrence: 'none' });
+  const [mobileSelectedTaskId, setMobileSelectedTaskId] = useState(null);
+
+  useEffect(() => {
+    if (addSheetCell) setAddSheetForm({ text: '', status: addSheetCell.status, priority: addSheetCell.priority, date: '' });
+  }, [addSheetCell]);
+
+  useEffect(() => {
+    if (editSheetTaskId) {
+      const t = tasks.find((x) => x.id === editSheetTaskId);
+      if (t) setEditSheetForm({ text: t.text, status: t.status, priority: t.priority, scheduledDate: t.scheduledDate || '', notes: t.notes || '', recurrence: t.recurrence || 'none' });
+    }
+  }, [editSheetTaskId]);
+
+  useEffect(() => {
+    const mql = window.matchMedia('(max-width: 767px)');
+    const handler = () => setIsMobileView(mql.matches);
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
+  }, []);
 
   const statuses = ['todo', 'progress', 'done'];
   const priorities = ['A', 'B', 'C', 'D', 'E'];
@@ -300,6 +327,8 @@ export default function EatThatFrog() {
       setEditingTaskId(null);
       setEditingText('');
     }
+    if (editSheetTaskId === id) setEditSheetTaskId(null);
+    if (mobileSelectedTaskId === id) setMobileSelectedTaskId(null);
   };
 
   const updateTask = (id, updates) => {
@@ -876,6 +905,321 @@ export default function EatThatFrog() {
           </div>
         )}
 
+        {/* Move task bottom sheet (mobile) */}
+        {moveMenuTaskId && (() => {
+          const moveTaskObj = tasks.find((t) => t.id === moveMenuTaskId);
+          if (!moveTaskObj) return null;
+          return (
+            <>
+              <div className="fixed inset-0 z-40 bg-black/50 md:hidden" onClick={() => setMoveMenuTaskId(null)} aria-hidden="true" />
+              <div
+                className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-slate-800 rounded-t-2xl shadow-2xl border border-slate-600 border-b-0 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] max-h-[70vh] overflow-y-auto"
+                role="dialog"
+                aria-label="Move task to column"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <div className="min-w-0 flex-1 pr-2">
+                    <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">Move task</p>
+                    <p className="text-white font-medium truncate">{moveTaskObj.text}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setMoveMenuTaskId(null)}
+                    className="flex-shrink-0 w-11 h-11 flex items-center justify-center rounded-xl text-gray-400 hover:text-white hover:bg-slate-700 touch-manipulation"
+                    aria-label="Close"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-xs text-gray-400 font-semibold mb-2">Status</p>
+                    <div className="flex flex-wrap gap-2">
+                      {statuses.map((s) => (
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() => {
+                            moveTask(moveTaskObj.id, s, moveTaskObj.priority);
+                            setMoveMenuTaskId(null);
+                          }}
+                          className={`min-h-[44px] px-4 rounded-xl text-sm font-semibold transition-colors touch-manipulation ${
+                            moveTaskObj.status === s
+                              ? 'bg-orange-500 text-white'
+                              : 'bg-slate-700 text-gray-300 hover:bg-slate-600 active:bg-slate-500'
+                          }`}
+                        >
+                          {getStatusLabel(s)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400 font-semibold mb-2">Priority</p>
+                    <div className="flex flex-wrap gap-2">
+                      {priorities.map((p) => (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => {
+                            moveTask(moveTaskObj.id, moveTaskObj.status, p);
+                            setMoveMenuTaskId(null);
+                          }}
+                          className={`min-h-[44px] min-w-[44px] rounded-xl text-sm font-bold transition-colors touch-manipulation ${getPriorityBadgeColor(p)} ${
+                            moveTaskObj.priority === p ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-800' : 'opacity-90 hover:opacity-100 active:opacity-100'
+                          }`}
+                        >
+                          {p}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <p className="text-gray-500 text-xs mt-3">Tap a status or priority to move. Tap again to change the other.</p>
+              </div>
+            </>
+          );
+        })()}
+
+        {/* Add Task bottom sheet (mobile) */}
+        {addSheetCell && (
+          <>
+            <div className="fixed inset-0 z-40 md:hidden bg-black/50" onClick={() => setAddSheetCell(null)} aria-hidden="true" />
+            <div
+              className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-slate-800 rounded-t-2xl shadow-2xl border border-slate-600 border-b-0 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] max-h-[85vh] overflow-y-auto"
+              role="dialog"
+              aria-label="Add task"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-bold text-white">New task</h2>
+                <button type="button" onClick={() => setAddSheetCell(null)} className="w-11 h-11 flex items-center justify-center rounded-xl text-gray-400 hover:text-white hover:bg-slate-700 touch-manipulation" aria-label="Close">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs text-gray-400 font-semibold mb-1.5">Task name</label>
+                  <input
+                    type="text"
+                    value={addSheetForm.text}
+                    onChange={(e) => setAddSheetForm((f) => ({ ...f, text: e.target.value }))}
+                    placeholder="What do you need to do?"
+                    className="w-full px-4 py-3 bg-slate-700 text-white rounded-xl border-2 border-slate-600 focus:border-orange-500 focus:outline-none text-base min-h-[48px] touch-manipulation"
+                    autoFocus
+                  />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400 font-semibold mb-2">Status</p>
+                  <div className="flex flex-wrap gap-2">
+                    {statuses.map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => setAddSheetForm((f) => ({ ...f, status: s }))}
+                        className={`min-h-[44px] px-4 rounded-xl text-sm font-semibold transition-colors touch-manipulation ${
+                          addSheetForm.status === s ? 'bg-orange-500 text-white' : 'bg-slate-700 text-gray-300 hover:bg-slate-600 active:bg-slate-500'
+                        }`}
+                      >
+                        {getStatusLabel(s)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400 font-semibold mb-2">Priority</p>
+                  <div className="flex flex-wrap gap-2">
+                    {priorities.map((p) => (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => setAddSheetForm((f) => ({ ...f, priority: p }))}
+                        className={`min-h-[44px] min-w-[44px] rounded-xl text-sm font-bold transition-colors touch-manipulation ${getPriorityBadgeColor(p)} ${
+                          addSheetForm.priority === p ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-800' : 'opacity-90 hover:opacity-100'
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-400 font-semibold mb-1.5">Schedule (optional)</label>
+                  <input
+                    type="date"
+                    value={addSheetForm.date}
+                    onChange={(e) => setAddSheetForm((f) => ({ ...f, date: e.target.value }))}
+                    className="w-full px-4 py-3 bg-slate-700 text-white rounded-xl border-2 border-slate-600 focus:border-orange-500 focus:outline-none min-h-[48px] touch-manipulation"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const text = addSheetForm.text.trim();
+                    if (text) {
+                      addTask(text, addSheetForm.priority, addSheetForm.status, addSheetForm.date || null);
+                      setAddSheetCell(null);
+                    }
+                  }}
+                  disabled={!addSheetForm.text.trim()}
+                  className="w-full min-h-[52px] rounded-xl bg-orange-500 text-white font-semibold hover:bg-orange-600 active:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors touch-manipulation"
+                >
+                  Add task
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Edit Task bottom sheet (mobile) */}
+        {editSheetTaskId && (() => {
+          const editTask = tasks.find((t) => t.id === editSheetTaskId);
+          if (!editTask) return null;
+          return (
+            <>
+              <div className="fixed inset-0 z-40 md:hidden bg-black/50" onClick={() => setEditSheetTaskId(null)} aria-hidden="true" />
+              <div
+                className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-slate-800 rounded-t-2xl shadow-2xl border border-slate-600 border-b-0 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] max-h-[85vh] overflow-y-auto"
+                role="dialog"
+                aria-label="Edit task"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-bold text-white">Edit task</h2>
+                  <button type="button" onClick={() => setEditSheetTaskId(null)} className="w-11 h-11 flex items-center justify-center rounded-xl text-gray-400 hover:text-white hover:bg-slate-700 touch-manipulation" aria-label="Close">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs text-gray-400 font-semibold mb-1.5">Task name</label>
+                    <input
+                      type="text"
+                      value={editSheetForm.text}
+                      onChange={(e) => setEditSheetForm((f) => ({ ...f, text: e.target.value }))}
+                      className="w-full px-4 py-3 bg-slate-700 text-white rounded-xl border-2 border-slate-600 focus:border-orange-500 focus:outline-none text-base min-h-[48px] touch-manipulation"
+                    />
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400 font-semibold mb-2">Status</p>
+                    <div className="flex flex-wrap gap-2">
+                      {statuses.map((s) => (
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() => setEditSheetForm((f) => ({ ...f, status: s }))}
+                          className={`min-h-[44px] px-4 rounded-xl text-sm font-semibold transition-colors touch-manipulation ${
+                            editSheetForm.status === s ? 'bg-orange-500 text-white' : 'bg-slate-700 text-gray-300 hover:bg-slate-600 active:bg-slate-500'
+                          }`}
+                        >
+                          {getStatusLabel(s)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400 font-semibold mb-2">Priority</p>
+                    <div className="flex flex-wrap gap-2">
+                      {priorities.map((p) => (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => setEditSheetForm((f) => ({ ...f, priority: p }))}
+                          className={`min-h-[44px] min-w-[44px] rounded-xl text-sm font-bold transition-colors touch-manipulation ${getPriorityBadgeColor(p)} ${
+                            editSheetForm.priority === p ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-800' : 'opacity-90 hover:opacity-100'
+                          }`}
+                        >
+                          {p}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-400 font-semibold mb-1.5">Schedule</label>
+                    <input
+                      type="date"
+                      value={editSheetForm.scheduledDate}
+                      onChange={(e) => setEditSheetForm((f) => ({ ...f, scheduledDate: e.target.value }))}
+                      className="w-full px-4 py-3 bg-slate-700 text-white rounded-xl border-2 border-slate-600 focus:border-orange-500 focus:outline-none min-h-[48px] touch-manipulation"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-400 font-semibold mb-1.5">Notes</label>
+                    <textarea
+                      value={editSheetForm.notes}
+                      onChange={(e) => setEditSheetForm((f) => ({ ...f, notes: e.target.value }))}
+                      placeholder="Add notes..."
+                      rows={3}
+                      className="w-full px-4 py-3 bg-slate-700 text-white rounded-xl border-2 border-slate-600 focus:border-orange-500 focus:outline-none resize-y min-h-[80px] touch-manipulation"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-400 font-semibold mb-1.5">Checklist</label>
+                    <div className="space-y-2">
+                      {(editTask.subtasks || []).map((st) => (
+                        <div key={st.id} className="flex items-center gap-2">
+                          <input type="checkbox" checked={!!st.done} onChange={() => toggleSubtask(editSheetTaskId, st.id)} className="rounded w-5 h-5 touch-manipulation" />
+                          <span className={`flex-1 text-sm ${st.done ? 'line-through text-gray-500' : 'text-white'}`}>{st.text}</span>
+                          <button type="button" onClick={() => removeSubtask(editSheetTaskId, st.id)} className="p-2 text-red-400 hover:text-red-300 touch-manipulation" aria-label="Remove">×</button>
+                        </div>
+                      ))}
+                      <form onSubmit={(e) => { e.preventDefault(); const input = e.target.querySelector('input'); if (input?.value.trim()) { addSubtask(editSheetTaskId, input.value); input.value = ''; } }} className="flex gap-2">
+                        <input type="text" placeholder="Add step..." className="flex-1 px-3 py-2 bg-slate-700 text-white rounded-lg border border-slate-600 focus:border-orange-500 focus:outline-none text-sm min-h-[44px] touch-manipulation" />
+                        <button type="submit" className="px-4 py-2 rounded-lg bg-slate-600 text-white text-sm font-medium touch-manipulation">Add</button>
+                      </form>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-400 font-semibold mb-1.5">Repeat</label>
+                    <select
+                      value={editSheetForm.recurrence}
+                      onChange={(e) => setEditSheetForm((f) => ({ ...f, recurrence: e.target.value }))}
+                      className="w-full px-4 py-3 bg-slate-700 text-white rounded-xl border-2 border-slate-600 focus:border-orange-500 focus:outline-none min-h-[48px] touch-manipulation"
+                    >
+                      <option value="none">No repeat</option>
+                      <option value="daily">Daily</option>
+                      <option value="weekly">Weekly</option>
+                      <option value="monthly">Monthly</option>
+                    </select>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const wasNotDone = editTask.status !== 'done';
+                        updateTask(editSheetTaskId, {
+                          text: editSheetForm.text.trim() || editTask.text,
+                          status: editSheetForm.status,
+                          priority: editSheetForm.priority,
+                          scheduledDate: editSheetForm.scheduledDate || undefined,
+                          notes: editSheetForm.notes,
+                          recurrence: editSheetForm.recurrence,
+                          ...(editSheetForm.status === 'done' && wasNotDone ? { completedAt: new Date().toISOString() } : {}),
+                        });
+                        if (wasNotDone && editSheetForm.status === 'done') {
+                          const taskDate = new Date(editTask.createdAt).toDateString();
+                          const today = new Date().toDateString();
+                          setStats((prev) => ({ ...prev, today: taskDate === today ? prev.today + 1 : prev.today, week: prev.week + 1, frogStreak: editTask.isFrog ? prev.frogStreak + 1 : prev.frogStreak }));
+                        }
+                        setEditSheetTaskId(null);
+                        if (editingTaskId === editSheetTaskId) { setEditingTaskId(null); setEditingText(''); }
+                      }}
+                      className="flex-1 min-h-[52px] rounded-xl bg-orange-500 text-white font-semibold hover:bg-orange-600 active:bg-orange-700 transition-colors touch-manipulation"
+                    >
+                      Save
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { deleteTask(editSheetTaskId); setEditSheetTaskId(null); }}
+                      className="min-h-[52px] px-4 rounded-xl bg-red-900/50 text-red-200 font-semibold hover:bg-red-800/50 active:bg-red-700/50 transition-colors touch-manipulation"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </>
+          );
+        })()}
+
         {view === 'kanban' ? (
           <>
             {/* Today's Frog Banner */}
@@ -1018,7 +1362,12 @@ export default function EatThatFrog() {
             )}
 
             {/* Kanban Matrix */}
-            <div className="overflow-x-auto -mx-2 px-2 sm:mx-0 sm:px-0 overflow-y-visible touch-pan-x">
+            <div
+              className="overflow-x-auto -mx-2 px-2 sm:mx-0 sm:px-0 overflow-y-visible touch-pan-x"
+              onClick={(e) => {
+                if (isMobileView && mobileSelectedTaskId && !e.target.closest('.task-card')) setMobileSelectedTaskId(null);
+              }}
+            >
               <div className="inline-flex gap-1 min-w-full">
                 {/* Header Column for Priority Labels */}
                 <div className="w-20 sm:w-28 md:w-32 flex-shrink-0">
@@ -1079,7 +1428,10 @@ export default function EatThatFrog() {
                           onDragLeave={handleDragLeave}
                           onDrop={(e) => handleDrop(e, status, priority)}
                           onDoubleClick={(e) => {
-                            if (!e.target.closest('.task-card') && !e.target.closest('.cell-add-btn')) setAddTaskCell({ status, priority });
+                            if (!e.target.closest('.task-card') && !e.target.closest('.cell-add-btn')) {
+                              if (isMobileView) setAddSheetCell({ status, priority });
+                              else setAddTaskCell({ status, priority });
+                            }
                           }}
                           title="Double-click to add a task here"
                         >
@@ -1087,7 +1439,11 @@ export default function EatThatFrog() {
                           {addTaskCell?.status !== status || addTaskCell?.priority !== priority ? (
                             <button
                               type="button"
-                              onClick={(e) => { e.stopPropagation(); setAddTaskCell({ status, priority }); }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (isMobileView) setAddSheetCell({ status, priority });
+                                else setAddTaskCell({ status, priority });
+                              }}
                               className="cell-add-btn w-full flex items-center justify-center gap-1.5 py-2.5 px-2 mb-2 rounded-lg border-2 border-dashed border-slate-400 text-slate-500 hover:border-orange-400 hover:text-orange-500 hover:bg-orange-500/10 active:bg-orange-500/20 transition-colors text-sm font-medium min-h-[44px] md:min-h-0 md:py-1.5 touch-manipulation"
                               title="Add task in this cell (or double-tap empty area)"
                             >
@@ -1151,11 +1507,11 @@ export default function EatThatFrog() {
                                 return (
                               <div
                                 key={task.id}
-                                draggable
-                                onDragStart={(e) => handleDragStart(e, task)}
+                                draggable={!isMobileView}
+                                onDragStart={isMobileView ? undefined : (e) => handleDragStart(e, task)}
                                 className={`task-card bg-white rounded-lg shadow-md ${
                                   draggedTask?.id === task.id ? 'dragging' : ''
-                                } ${task.isFrog ? 'ring-2 ring-orange-500' : ''} ${task.collapsed ? 'p-2 cursor-pointer' : 'p-3 cursor-move'}`}
+                                } ${task.isFrog ? 'ring-2 ring-orange-500' : ''} ${task.collapsed ? 'p-2 cursor-pointer' : `p-3 ${isMobileView ? 'cursor-default' : 'cursor-move'}`}`}
                               >
                                 {confirmDeleteId === task.id ? (
                                   <div className="flex items-center justify-between gap-2 py-1" onClick={(e) => e.stopPropagation()}>
@@ -1166,49 +1522,97 @@ export default function EatThatFrog() {
                                     </div>
                                   </div>
                                 ) : task.collapsed ? (
-                                  <div
-                                    className="flex items-center gap-2 min-w-0"
-                                    onClick={(e) => { e.stopPropagation(); toggleTaskCollapsed(task.id); }}
-                                    title="Click to expand"
-                                  >
-                                    <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                                    <GripVertical className="w-4 h-4 text-gray-400 flex-shrink-0" title="Drag to move" />
-                                    <p className="text-sm text-gray-800 font-medium truncate flex-1 min-w-0">{task.text}</p>
-                                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                                      {task.scheduledDate && (
-                                        <span className="text-[10px] text-gray-500 whitespace-nowrap flex items-center" title={`Scheduled: ${formatDay(task.scheduledDate)}`}>
-                                          <Calendar className="w-3 h-3 mr-0.5 flex-shrink-0" />
-                                          {new Date(task.scheduledDate + 'T12:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                                        </span>
-                                      )}
-                                      {(task.subtasks || []).length > 0 && (
-                                        <span className="text-[10px] text-gray-500" title="Checklist">
-                                          {(task.subtasks || []).filter(s => s.done).length}/{(task.subtasks || []).length}
-                                        </span>
-                                      )}
-                                      {task.notes && task.notes.trim() && (
-                                        <FileText className="w-3 h-3 text-gray-400 flex-shrink-0" title="Has note" />
-                                      )}
-                                      {task.recurrence && task.recurrence !== 'none' && (
-                                        <Repeat className="w-3 h-3 text-gray-400 flex-shrink-0" title={`Repeats ${task.recurrence}`} />
+                                  <div className="min-w-0">
+                                    <div
+                                      className="flex items-start sm:items-center gap-2 min-w-0"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (isMobileView) setMobileSelectedTaskId((prev) => (prev === task.id ? null : task.id));
+                                        else toggleTaskCollapsed(task.id);
+                                      }}
+                                      title={isMobileView ? 'Tap to show actions' : 'Click to expand'}
+                                    >
+                                      <button
+                                        type="button"
+                                        onClick={(e) => { e.stopPropagation(); toggleTaskCollapsed(task.id); }}
+                                        className="flex-shrink-0 p-0.5 -m-0.5 rounded hover:bg-gray-100 text-gray-400 touch-manipulation"
+                                        aria-label="Expand"
+                                      >
+                                        <ChevronRight className="w-4 h-4 mt-0.5 sm:mt-0" />
+                                      </button>
+                                      {!isMobileView && <GripVertical className="w-4 h-4 text-gray-400 flex-shrink-0" title="Drag to move" />}
+                                      <p className="text-base sm:text-sm text-gray-800 font-medium flex-1 min-w-0 break-words line-clamp-2 sm:line-clamp-none sm:truncate leading-snug">{task.text}</p>
+                                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                                        {task.scheduledDate && (
+                                          <span className="text-[10px] text-gray-500 whitespace-nowrap flex items-center" title={`Scheduled: ${formatDay(task.scheduledDate)}`}>
+                                            <Calendar className="w-3 h-3 mr-0.5 flex-shrink-0" />
+                                            {new Date(task.scheduledDate + 'T12:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                          </span>
+                                        )}
+                                        {(task.subtasks || []).length > 0 && (
+                                          <span className="text-[10px] text-gray-500" title="Checklist">
+                                            {(task.subtasks || []).filter(s => s.done).length}/{(task.subtasks || []).length}
+                                          </span>
+                                        )}
+                                        {task.notes && task.notes.trim() && (
+                                          <FileText className="w-3 h-3 text-gray-400 flex-shrink-0" title="Has note" />
+                                        )}
+                                        {task.recurrence && task.recurrence !== 'none' && (
+                                          <Repeat className="w-3 h-3 text-gray-400 flex-shrink-0" title={`Repeats ${task.recurrence}`} />
+                                        )}
+                                      </div>
+                                      {!isMobileView && (
+                                        <div className="flex gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                                          <button
+                                            onClick={() => setFrog(task.id)}
+                                            className={`p-1 rounded flex items-center justify-center touch-manipulation ${task.isFrog ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-400 hover:bg-orange-100 hover:text-orange-500'}`}
+                                            title="Mark as frog"
+                                          >
+                                            <Flame className="w-3 h-3" />
+                                          </button>
+                                          <button
+                                            onClick={() => setConfirmDeleteId(task.id)}
+                                            className="p-1 rounded bg-gray-100 text-gray-400 hover:bg-red-100 hover:text-red-600 touch-manipulation"
+                                            title="Delete"
+                                          >
+                                            <Trash2 className="w-3 h-3" />
+                                          </button>
+                                        </div>
                                       )}
                                     </div>
-                                    <div className="flex gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-                                      <button
-                                        onClick={() => setFrog(task.id)}
-                                        className={`min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 p-2 sm:p-1 rounded-lg sm:rounded flex items-center justify-center touch-manipulation ${task.isFrog ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-400 hover:bg-orange-100 hover:text-orange-500 active:bg-orange-200'}`}
-                                        title="Mark as frog"
-                                      >
-                                        <Flame className="w-4 h-4 sm:w-3 sm:h-3" />
-                                      </button>
-                                      <button
-                                        onClick={() => setConfirmDeleteId(task.id)}
-                                        className="min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 p-2 sm:p-1 rounded-lg sm:rounded bg-gray-100 text-gray-400 hover:bg-red-100 hover:text-red-600 flex items-center justify-center touch-manipulation active:bg-red-200"
-                                        title="Delete"
-                                      >
-                                        <Trash2 className="w-4 h-4 sm:w-3 sm:h-3" />
-                                      </button>
-                                    </div>
+                                    {/* Mobile: action buttons on second row when selected */}
+                                    {isMobileView && mobileSelectedTaskId === task.id && (
+                                      <div className="flex flex-wrap gap-2 mt-2 pt-2 border-t border-gray-200" onClick={(e) => e.stopPropagation()}>
+                                        <button
+                                          onClick={() => setEditSheetTaskId(task.id)}
+                                          className="min-w-[40px] min-h-[40px] p-2 rounded-lg flex items-center justify-center touch-manipulation bg-gray-100 text-gray-500 hover:bg-slate-200 active:bg-slate-300"
+                                          title="Edit task"
+                                        >
+                                          <Pencil className="w-4 h-4" />
+                                        </button>
+                                        <button
+                                          onClick={() => setMoveMenuTaskId(task.id)}
+                                          className="min-w-[40px] min-h-[40px] p-2 rounded-lg flex items-center justify-center touch-manipulation bg-gray-100 text-gray-500 hover:bg-slate-200 active:bg-slate-300"
+                                          title="Move to another column"
+                                        >
+                                          <ArrowRightLeft className="w-4 h-4" />
+                                        </button>
+                                        <button
+                                          onClick={() => setFrog(task.id)}
+                                          className={`min-w-[40px] min-h-[40px] p-2 rounded-lg flex items-center justify-center touch-manipulation ${task.isFrog ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-400 hover:bg-orange-100 hover:text-orange-500 active:bg-orange-200'}`}
+                                          title="Mark as frog"
+                                        >
+                                          <Flame className="w-4 h-4" />
+                                        </button>
+                                        <button
+                                          onClick={() => setConfirmDeleteId(task.id)}
+                                          className="min-w-[40px] min-h-[40px] p-2 rounded-lg flex items-center justify-center touch-manipulation bg-gray-100 text-gray-400 hover:bg-red-100 hover:text-red-600 active:bg-red-200"
+                                          title="Delete"
+                                        >
+                                          <Trash2 className="w-4 h-4" />
+                                        </button>
+                                      </div>
+                                    )}
                                   </div>
                                 ) : (
                                   <>
@@ -1221,7 +1625,7 @@ export default function EatThatFrog() {
                                   >
                                     <ChevronDown className="w-4 h-4 mt-0.5" />
                                   </button>
-                                  <GripVertical className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
+                                  {!isMobileView && <GripVertical className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />}
                                   <div className="flex-1 min-w-0">
                                     {editingTaskId === task.id ? (
                                       <input
@@ -1242,35 +1646,69 @@ export default function EatThatFrog() {
                                       />
                                     ) : (
                                       <p
-                                        className="text-sm text-gray-800 font-medium break-words cursor-text hover:text-orange-600 transition-colors"
-                                        onClick={() => startEditing(task)}
-                                        title="Click to edit"
+                                        className="text-base sm:text-sm text-gray-800 font-medium break-words cursor-text hover:text-orange-600 transition-colors"
+                                        onClick={() => {
+                                          if (isMobileView) setMobileSelectedTaskId((prev) => (prev === task.id ? null : task.id));
+                                          else startEditing(task);
+                                        }}
+                                        title={isMobileView ? 'Tap to show actions' : 'Click to edit'}
                                       >
                                         {task.text}
                                       </p>
                                     )}
                                   </div>
-                                  <div className="flex gap-1 flex-shrink-0">
+                                  {!isMobileView && (
+                                    <div className="flex gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                                      <button
+                                        onClick={() => setFrog(task.id)}
+                                        className={`p-1 rounded flex items-center justify-center transition-all ${task.isFrog ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-400 hover:bg-orange-100 hover:text-orange-500'}`}
+                                        title="Mark as frog"
+                                      >
+                                        <Flame className="w-3 h-3" />
+                                      </button>
+                                      <button
+                                        onClick={() => setConfirmDeleteId(task.id)}
+                                        className="p-1 rounded bg-gray-100 text-gray-400 hover:bg-red-100 hover:text-red-600 transition-all"
+                                        title="Delete"
+                                      >
+                                        <Trash2 className="w-3 h-3" />
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                                {/* Mobile: action buttons on own row when selected */}
+                                {isMobileView && mobileSelectedTaskId === task.id && (
+                                  <div className="flex flex-wrap gap-2 mt-2 pt-2 border-t border-gray-200" onClick={(e) => e.stopPropagation()}>
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); setEditSheetTaskId(task.id); }}
+                                      className="min-w-[40px] min-h-[40px] p-2 rounded-lg flex items-center justify-center touch-manipulation bg-gray-100 text-gray-500 hover:bg-slate-200 active:bg-slate-300"
+                                      title="Edit task"
+                                    >
+                                      <Pencil className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); setMoveMenuTaskId(task.id); }}
+                                      className="min-w-[40px] min-h-[40px] p-2 rounded-lg flex items-center justify-center touch-manipulation bg-gray-100 text-gray-500 hover:bg-slate-200 active:bg-slate-300"
+                                      title="Move to another column"
+                                    >
+                                      <ArrowRightLeft className="w-4 h-4" />
+                                    </button>
                                     <button
                                       onClick={() => setFrog(task.id)}
-                                      className={`min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 p-2 sm:p-1 rounded-lg sm:rounded flex items-center justify-center transition-all touch-manipulation ${
-                                        task.isFrog
-                                          ? 'bg-orange-500 text-white'
-                                          : 'bg-gray-100 text-gray-400 hover:bg-orange-100 hover:text-orange-500 active:bg-orange-200'
-                                      }`}
+                                      className={`min-w-[40px] min-h-[40px] p-2 rounded-lg flex items-center justify-center touch-manipulation ${task.isFrog ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-400 hover:bg-orange-100 hover:text-orange-500 active:bg-orange-200'}`}
                                       title="Mark as frog"
                                     >
-                                      <Flame className="w-4 h-4 sm:w-3 sm:h-3" />
+                                      <Flame className="w-4 h-4" />
                                     </button>
                                     <button
                                       onClick={() => setConfirmDeleteId(task.id)}
-                                      className="min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 p-2 sm:p-1 rounded-lg sm:rounded bg-gray-100 text-gray-400 hover:bg-red-100 hover:text-red-600 flex items-center justify-center transition-all touch-manipulation active:bg-red-200"
+                                      className="min-w-[40px] min-h-[40px] p-2 rounded-lg flex items-center justify-center touch-manipulation bg-gray-100 text-gray-400 hover:bg-red-100 hover:text-red-600 active:bg-red-200"
                                       title="Delete"
                                     >
-                                      <Trash2 className="w-4 h-4 sm:w-3 sm:h-3" />
+                                      <Trash2 className="w-4 h-4" />
                                     </button>
                                   </div>
-                                </div>
+                                )}
                                 {/* Optional scheduled date */}
                                 <div className="mt-2 pt-2 border-t border-gray-100">
                                   {editingDateTaskId === task.id ? (

@@ -2,6 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Confetti particle animations */
+@keyframes confetti-fall-l {
+  0%   { transform: translateY(0) translateX(0) rotate(0deg) scale(1); opacity: 1; }
+  60%  { opacity: 1; }
+  100% { transform: translateY(105vh) translateX(-90px) rotate(-420deg) scale(0.6); opacity: 0; }
+}
+@keyframes confetti-fall-r {
+  0%   { transform: translateY(0) translateX(0) rotate(0deg) scale(1); opacity: 1; }
+  60%  { opacity: 1; }
+  100% { transform: translateY(105vh) translateX(90px) rotate(420deg) scale(0.6); opacity: 0; }
+}
+
 /* Smartphone UX: reduce tap highlight, improve touch scrolling */
 @layer base {
   html {

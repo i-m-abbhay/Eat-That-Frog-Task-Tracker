@@ -93,6 +93,151 @@ function ScheduleTaskCard({
   );
 }
 
+const CONFETTI_COLORS = ['#f97316','#fbbf24','#34d399','#60a5fa','#f472b6','#a78bfa','#fb7185','#4ade80'];
+
+function Confetti({ active, confettiKey }) {
+  const particles = React.useMemo(() =>
+    Array.from({ length: 55 }, (_, i) => ({
+      id: i,
+      x: 2 + Math.random() * 96,
+      color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
+      w: 6 + Math.random() * 8,
+      h: 4 + Math.random() * 7,
+      delay: Math.random() * 0.9,
+      dur: 1.3 + Math.random() * 0.9,
+      dir: Math.random() > 0.5 ? 'l' : 'r',
+      round: Math.random() > 0.45,
+    }))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  , [confettiKey]);
+
+  if (!active) return null;
+  return (
+    <div aria-hidden className="fixed inset-0 pointer-events-none z-[300] overflow-hidden">
+      {particles.map((p) => (
+        <span
+          key={p.id}
+          style={{
+            position: 'absolute',
+            left: `${p.x}%`,
+            top: '-14px',
+            width: p.w,
+            height: p.round ? p.w : p.h,
+            background: p.color,
+            borderRadius: p.round ? '50%' : '2px',
+            animationName: `confetti-fall-${p.dir}`,
+            animationDuration: `${p.dur}s`,
+            animationDelay: `${p.delay}s`,
+            animationTimingFunction: 'ease-in',
+            animationFillMode: 'forwards',
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function HelpTip({ text, className = '', id, activeId, onToggle }) {
+  const showByTap = id != null && activeId === id;
+  const tipRef = React.useRef(null);
+  const anchorRef = React.useRef(null);
+  // Stable ref to the reposition function so event listeners always call the latest version
+  const repositionRef = React.useRef(null);
+
+  // Build the reposition function once and keep it in a ref
+  React.useEffect(() => {
+    repositionRef.current = () => {
+      const tip = tipRef.current;
+      const anchor = anchorRef.current;
+      if (!tip || !anchor) return;
+
+      tip.style.left = '';
+      tip.style.right = '';
+      tip.style.transform = '';
+      tip.style.top = '';
+      tip.style.bottom = '';
+
+      const tipRect = tip.getBoundingClientRect();
+      const anchorRect = anchor.getBoundingClientRect();
+      const vw = window.innerWidth;
+      const margin = 8;
+
+      let left = anchorRect.left + anchorRect.width / 2 - tipRect.width / 2;
+      if (left < margin) left = margin;
+      if (left + tipRect.width > vw - margin) left = vw - margin - tipRect.width;
+
+      tip.style.position = 'fixed';
+      tip.style.left = `${left}px`;
+      tip.style.transform = 'none';
+
+      const spaceAbove = anchorRect.top;
+      const tipHeight = tipRect.height;
+      if (spaceAbove < tipHeight + margin + 6) {
+        tip.style.bottom = '';
+        tip.style.top = `${anchorRect.bottom + 6}px`;
+      } else {
+        tip.style.top = '';
+        tip.style.bottom = `${window.innerHeight - anchorRect.top + 6}px`;
+      }
+    };
+  });
+
+  // Attach event-driven listeners once on mount — covers hover (desktop) and resize
+  React.useEffect(() => {
+    const anchor = anchorRef.current;
+    if (!anchor) return;
+    const onEnter = () => repositionRef.current?.();
+    const onResize = () => repositionRef.current?.();
+    anchor.addEventListener('mouseenter', onEnter);
+    window.addEventListener('resize', onResize);
+    return () => {
+      anchor.removeEventListener('mouseenter', onEnter);
+      window.removeEventListener('resize', onResize);
+    };
+  }, []); // run once on mount
+
+  // Reposition when mobile tap-to-show activates (after paint, so tip is measurable)
+  React.useEffect(() => {
+    if (!showByTap) return;
+    const raf = requestAnimationFrame(() => repositionRef.current?.());
+    return () => cancelAnimationFrame(raf);
+  }, [showByTap]);
+
+  return (
+    <span
+      data-help-tip
+      className={`inline-flex items-center justify-center cursor-help align-middle ${className}`}
+      title={text}
+      aria-label={text}
+    >
+      <span
+        ref={anchorRef}
+        className="relative group inline-flex touch-manipulation min-w-[28px] min-h-[28px] sm:min-w-0 sm:min-h-0 items-center justify-center rounded-full sm:rounded-none hover:bg-slate-700/50 sm:hover:bg-transparent"
+        onClick={(e) => {
+          if (id != null && onToggle) {
+            e.preventDefault();
+            e.stopPropagation();
+            onToggle(showByTap ? null : id);
+          }
+        }}
+        role={id != null ? 'button' : undefined}
+        aria-expanded={showByTap}
+      >
+        <HelpCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400 hover:text-gray-300 flex-shrink-0 transition-colors" />
+        {/* Tooltip rendered in a portal-like fixed span — positioned via useEffect above */}
+        <span
+          ref={tipRef}
+          className={`fixed px-2.5 py-1.5 text-xs font-medium text-white bg-slate-900 border border-slate-600 rounded-lg shadow-xl whitespace-normal w-max max-w-[min(260px,90vw)] z-[200] pointer-events-none transition-opacity ${
+            showByTap ? 'opacity-100 visible' : 'opacity-0 invisible sm:group-hover:opacity-100 sm:group-hover:visible'
+          }`}
+        >
+          {text}
+        </span>
+      </span>
+    </span>
+  );
+}
+
 export default function EatThatFrog() {
   const [tasks, setTasks] = useState([]);
   const [view, setView] = useState('kanban');
@@ -103,7 +248,7 @@ export default function EatThatFrog() {
   const [quickAddColumn, setQuickAddColumn] = useState('todo');
   const [quickAddPriority, setQuickAddPriority] = useState('A');
   const [quickAddText, setQuickAddText] = useState('');
-  const [dragOverCell, setDragOverCell] = useState(null); // { status, priority }
+  const [dragOverCell, setDragOverCell] = useState(null); // { status, priority, insertBeforeTaskId?: number }
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [editingText, setEditingText] = useState('');
   const quickAddInputRef = React.useRef(null);
@@ -128,6 +273,9 @@ export default function EatThatFrog() {
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [undoState, setUndoState] = useState(null); // { tasks, stats, task, previousStatus, previousPriority, indexInCell }
   const undoTimeoutRef = React.useRef(null);
+  const confettiTimerRef = React.useRef(null);
+  const [confettiActive, setConfettiActive] = useState(false);
+  const [confettiKey, setConfettiKey] = useState(0);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null); // show in-task confirmation instead of window.confirm
   const [expandedNotesTaskId, setExpandedNotesTaskId] = useState(null);
   const [expandedSubtasksTaskId, setExpandedSubtasksTaskId] = useState(null);
@@ -141,6 +289,8 @@ export default function EatThatFrog() {
   const [editSheetTaskId, setEditSheetTaskId] = useState(null);
   const [editSheetForm, setEditSheetForm] = useState({ text: '', status: 'todo', priority: 'A', scheduledDate: '', notes: '', recurrence: 'none' });
   const [mobileSelectedTaskId, setMobileSelectedTaskId] = useState(null);
+  const [showGuideSection, setShowGuideSection] = useState(true);
+  const [helpTooltipId, setHelpTooltipId] = useState(null);
 
   useEffect(() => {
     if (addSheetCell) setAddSheetForm({ text: '', status: addSheetCell.status, priority: addSheetCell.priority, date: '' });
@@ -507,7 +657,38 @@ export default function EatThatFrog() {
         week: prev.week + 1,
         frogStreak: task.isFrog ? prev.frogStreak + 1 : prev.frogStreak,
       }));
+      triggerConfetti();
     }
+  };
+
+  const triggerConfetti = () => {
+    if (confettiTimerRef.current) clearTimeout(confettiTimerRef.current);
+    setConfettiKey((k) => k + 1);
+    setConfettiActive(true);
+    confettiTimerRef.current = setTimeout(() => {
+      setConfettiActive(false);
+      confettiTimerRef.current = null;
+    }, 2600);
+  };
+
+  const getDateStatus = (task) => {
+    if (!task.scheduledDate || task.status === 'done') return null;
+    // Use new Date(year, month, day) for both sides — always local-timezone midnight,
+    // immune to the UTC-vs-local ambiguity of ISO date-string and toDateString() parsing.
+    const now = new Date();
+    const todayMs = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const [y, m, d] = task.scheduledDate.split('-').map(Number);
+    const scheduledMs = new Date(y, m - 1, d).getTime();
+    if (scheduledMs < todayMs) return 'overdue';
+    if (scheduledMs === todayMs) return 'today';
+    return null;
+  };
+
+  const getRowProgress = (priority) => {
+    const all = tasks.filter((t) => t.priority === priority);
+    if (all.length === 0) return null;
+    const done = all.filter((t) => t.status === 'done').length;
+    return { done, total: all.length, pct: Math.round((done / all.length) * 100) };
   };
 
   const handleDragStart = (e, task) => {
@@ -515,22 +696,75 @@ export default function EatThatFrog() {
     e.dataTransfer.effectAllowed = 'move';
   };
 
+  const handleDragEnd = () => {
+    setDraggedTask(null);
+    setDragOverCell(null);
+  };
+
   const handleDragOver = (e, status, priority) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
-    setDragOverCell({ status, priority });
+    // Derive insert position from cursor's vertical position relative to each card
+    const cards = Array.from(e.currentTarget.querySelectorAll('[data-task-id]'))
+      .filter((el) => Number(el.dataset.taskId) !== draggedTask?.id);
+    let insertBeforeTaskId = null; // null → append at end
+    for (const card of cards) {
+      const rect = card.getBoundingClientRect();
+      if (e.clientY < rect.top + rect.height / 2) {
+        insertBeforeTaskId = Number(card.dataset.taskId);
+        break;
+      }
+    }
+    setDragOverCell({ status, priority, insertBeforeTaskId });
   };
 
   const handleDragLeave = (e) => {
     e.preventDefault();
+    if (e.relatedTarget && e.currentTarget?.contains(e.relatedTarget)) return;
     setDragOverCell(null);
+  };
+
+  const reorderTaskInCell = (taskId, status, priority, insertBeforeTaskId) => {
+    // Always operate on ALL tasks in the cell so filters never corrupt hidden tasks.
+    // insertBeforeTaskId = number → insert before that task
+    // insertBeforeTaskId = null  → append at end
+    setTasks((prev) => {
+      const cellTasks = prev.filter((t) => t.status === status && t.priority === priority);
+      const fromIdx = cellTasks.findIndex((t) => t.id === taskId);
+      if (fromIdx === -1) return prev;
+      const newCellOrder = [...cellTasks];
+      const [removed] = newCellOrder.splice(fromIdx, 1);
+      if (insertBeforeTaskId == null) {
+        newCellOrder.push(removed);
+      } else {
+        const toIdx = newCellOrder.findIndex((t) => t.id === insertBeforeTaskId);
+        if (toIdx === -1) newCellOrder.push(removed);
+        else newCellOrder.splice(toIdx, 0, removed);
+      }
+      let j = 0;
+      return prev.map((t) => {
+        if (t.status !== status || t.priority !== priority) return t;
+        return newCellOrder[j++];
+      });
+    });
   };
 
   const handleDrop = (e, status, priority) => {
     e.preventDefault();
+    e.stopPropagation();
+    const cell = dragOverCell;
     setDragOverCell(null);
     if (draggedTask) {
-      moveTask(draggedTask.id, status, priority);
+      const sameCell = draggedTask.status === status && draggedTask.priority === priority;
+      if (sameCell) {
+        const insertBeforeTaskId = cell?.insertBeforeTaskId ?? null;
+        // Skip no-op: dropping immediately before itself leaves order unchanged
+        if (insertBeforeTaskId !== draggedTask.id) {
+          reorderTaskInCell(draggedTask.id, status, priority, insertBeforeTaskId);
+        }
+      } else {
+        moveTask(draggedTask.id, status, priority);
+      }
       setDraggedTask(null);
     }
   };
@@ -653,6 +887,8 @@ export default function EatThatFrog() {
   const isViewingThisMonth = scheduleRange === 'monthly' && getMonthStart(focusDate) === getMonthStart(todayKey);
 
   return (
+    <>
+    <Confetti active={confettiActive} confettiKey={confettiKey} />
     <div className={`min-h-screen font-sans theme-root pt-[max(1rem,env(safe-area-inset-top))] pr-[max(1rem,env(safe-area-inset-right))] pb-[max(1rem,env(safe-area-inset-bottom))] pl-[max(1rem,env(safe-area-inset-left))] md:pt-[max(1.5rem,env(safe-area-inset-top))] md:pr-[max(1.5rem,env(safe-area-inset-right))] md:pb-[max(1.5rem,env(safe-area-inset-bottom))] md:pl-[max(1.5rem,env(safe-area-inset-left))] ${effectiveTheme === 'light' ? 'theme-light bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100' : 'bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900'}`}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap');
@@ -1198,6 +1434,7 @@ export default function EatThatFrog() {
                           const taskDate = new Date(editTask.createdAt).toDateString();
                           const today = new Date().toDateString();
                           setStats((prev) => ({ ...prev, today: taskDate === today ? prev.today + 1 : prev.today, week: prev.week + 1, frogStreak: editTask.isFrog ? prev.frogStreak + 1 : prev.frogStreak }));
+                          triggerConfetti();
                         }
                         setEditSheetTaskId(null);
                         if (editingTaskId === editSheetTaskId) { setEditingTaskId(null); setEditingText(''); }
@@ -1221,7 +1458,34 @@ export default function EatThatFrog() {
         })()}
 
         {view === 'kanban' ? (
-          <>
+          <div
+            onClick={(e) => {
+              if (helpTooltipId != null && !e.target.closest('[data-help-tip]')) setHelpTooltipId(null);
+            }}
+          >
+            {/* Quick guide section */}
+            {showGuideSection && (
+              <div className="mb-4 md:mb-5 rounded-xl bg-slate-800/90 border border-slate-600/80 p-3 sm:p-4 flex flex-wrap items-center gap-2 sm:gap-3">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <span className="text-gray-300 text-sm font-medium shrink-0 flex items-center gap-1.5">
+                    Quick guide
+                    <HelpTip id="guide" activeId={helpTooltipId} onToggle={setHelpTooltipId} text="This short guide explains how to use the board. Dismiss with Got it when you're familiar." />
+                  </span>
+                  <span className="text-gray-400 text-xs sm:text-sm">
+                    Add tasks with the bar below. Rows = priority (A→E), columns = status. Drag to move; mark one task with the flame as your frog for the day.
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowGuideSection(false)}
+                  className="shrink-0 text-xs font-semibold text-gray-400 hover:text-white px-2 py-1.5 rounded-lg hover:bg-slate-700 transition-colors touch-manipulation min-h-[36px]"
+                  aria-label="Dismiss guide"
+                >
+                  Got it
+                </button>
+              </div>
+            )}
+
             {/* Today's Frog Banner */}
             {todaysFrog && (
               <div className="mb-4 md:mb-6 bg-gradient-to-r from-orange-600 to-red-600 rounded-xl p-4 sm:p-6 text-white shadow-2xl frog-glow">
@@ -1251,6 +1515,7 @@ export default function EatThatFrog() {
             <div className="mb-4 md:mb-6 bg-slate-800 rounded-xl p-3 sm:p-4 flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3 sm:gap-4">
               <div className="flex flex-wrap items-center gap-2 sm:gap-4 order-2 sm:order-1">
                 <Filter className="w-5 h-5 text-gray-400 flex-shrink-0 hidden sm:block" />
+                <HelpTip id="filters" activeId={helpTooltipId} onToggle={setHelpTooltipId} text="Filter by Frogs only (today's priority task) or by priority (A–E). Search matches task text." />
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setFilterFrog(!filterFrog)}
@@ -1303,15 +1568,18 @@ export default function EatThatFrog() {
             {/* Quick Add Bar */}
             <div className="mb-4 md:mb-6 bg-slate-800 rounded-xl p-3 sm:p-4">
               <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-                <input
-                  ref={quickAddInputRef}
-                  type="text"
-                  value={quickAddText}
-                  onChange={(e) => setQuickAddText(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && quickAdd()}
-                  placeholder="Quick add task..."
-                  className="flex-1 min-w-0 px-4 py-3 sm:py-2 bg-slate-700 text-white rounded-xl sm:rounded-lg border-2 border-slate-600 focus:border-orange-500 focus:outline-none text-base sm:text-sm min-h-[48px] sm:min-h-0 touch-manipulation"
-                />
+                <div className="flex-1 min-w-0 flex items-center gap-2">
+                  <input
+                    ref={quickAddInputRef}
+                    type="text"
+                    value={quickAddText}
+                    onChange={(e) => setQuickAddText(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && quickAdd()}
+                    placeholder="Quick add task..."
+                    className="flex-1 min-w-0 px-4 py-3 sm:py-2 bg-slate-700 text-white rounded-xl sm:rounded-lg border-2 border-slate-600 focus:border-orange-500 focus:outline-none text-base sm:text-sm min-h-[48px] sm:min-h-0 touch-manipulation"
+                  />
+                  <HelpTip id="quickadd" activeId={helpTooltipId} onToggle={setHelpTooltipId} text="Type a task name, set priority and status, then press Enter or click + to add. Optional date schedules the task for a specific day." className="shrink-0" />
+                </div>
                 <div className="flex flex-wrap gap-2 sm:gap-3 items-center">
                   <select
                     value={quickAddPriority || ''}
@@ -1371,20 +1639,41 @@ export default function EatThatFrog() {
               <div className="inline-flex gap-1 min-w-full">
                 {/* Header Column for Priority Labels */}
                 <div className="w-20 sm:w-28 md:w-32 flex-shrink-0">
-                  <div className="h-12 sm:h-14 bg-slate-800 rounded-t-lg mb-1"></div>
+                  <div className="h-12 sm:h-14 bg-slate-800 rounded-t-lg mb-1 flex items-center justify-center gap-1">
+                    <span className="text-gray-400 text-xs font-semibold uppercase tracking-wider">Priority</span>
+                    <HelpTip id="priority" activeId={helpTooltipId} onToggle={setHelpTooltipId} text="Rows are priority: A = Must do, B = Should do, C = Nice to do, D = Delegate, E = Eliminate. Put your most important tasks in row A." />
+                  </div>
                   {priorities.map((priority) => (
                     <React.Fragment key={priority}>
                       <div
                         style={{ height: rowHeights[priority] }}
                         className="bg-slate-800 rounded-lg mb-0 flex items-center justify-center flex-shrink-0"
                       >
-                        <div className="text-center px-0.5">
+                        <div className="text-center px-0.5 w-full">
                           <div
                             className={`text-xl sm:text-2xl md:text-3xl font-bold mb-0.5 sm:mb-1 ${getPriorityBadgeColor(priority)} w-9 h-9 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-lg flex items-center justify-center mx-auto`}
                           >
                             {priority}
                           </div>
                           <div className="text-[10px] sm:text-xs text-gray-400 font-semibold leading-tight">{getPriorityLabel(priority)}</div>
+                          {(() => {
+                            const prog = getRowProgress(priority);
+                            if (!prog) return null;
+                            return (
+                              <div className="mt-1.5 px-1" title={`${prog.done} / ${prog.total} done`}>
+                                <div className="w-full bg-slate-700 rounded-full h-1.5 overflow-hidden">
+                                  <div
+                                    className="h-full rounded-full transition-all duration-500"
+                                    style={{
+                                      width: `${prog.pct}%`,
+                                      background: prog.pct === 100 ? '#34d399' : prog.pct >= 50 ? '#f97316' : '#64748b',
+                                    }}
+                                  />
+                                </div>
+                                <div className="text-[9px] text-gray-500 mt-0.5">{prog.done}/{prog.total}</div>
+                              </div>
+                            );
+                          })()}
                         </div>
                       </div>
                       <div
@@ -1403,12 +1692,15 @@ export default function EatThatFrog() {
                 </div>
 
                 {/* Status Columns */}
-                {statuses.map((status) => (
+                {statuses.map((status, idx) => (
                   <div key={status} className="flex-1 min-w-[200px] sm:min-w-[240px] md:min-w-[280px]">
-                    <div className="h-14 bg-slate-800 rounded-t-lg mb-1 flex items-center justify-center">
+                    <div className="h-14 bg-slate-800 rounded-t-lg mb-1 flex items-center justify-center gap-1">
                       <div className="text-center">
-                        <div className="text-white font-bold text-lg uppercase tracking-wider">
+                        <div className="text-white font-bold text-lg uppercase tracking-wider flex items-center justify-center gap-1">
                           {getStatusLabel(status)}
+                          {idx === 0 && (
+                            <HelpTip id="status" activeId={helpTooltipId} onToggle={setHelpTooltipId} text="Columns are status: To Do → In Progress → Done. Drag tasks between columns to update their status." />
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1504,13 +1796,20 @@ export default function EatThatFrog() {
                                   );
                                 }
                                 const task = item;
+                                const inSameCell = dragOverCell?.status === status && dragOverCell?.priority === priority;
+                                const showDropBefore = !isMobileView && inSameCell && dragOverCell?.insertBeforeTaskId === task.id;
                                 return (
+                              <React.Fragment key={task.id}>
+                                {showDropBefore && (
+                                  <div className="h-1 rounded-full bg-orange-500 opacity-90 flex-shrink-0 min-h-[8px]" aria-hidden />
+                                )}
                               <div
-                                key={task.id}
+                                data-task-id={task.id}
                                 draggable={!isMobileView}
                                 onDragStart={isMobileView ? undefined : (e) => handleDragStart(e, task)}
+                                onDragEnd={!isMobileView ? handleDragEnd : undefined}
                                 className={`task-card bg-white rounded-lg shadow-md ${
-                                  draggedTask?.id === task.id ? 'dragging' : ''
+                                  draggedTask?.id === task.id && (!dragOverCell || dragOverCell.status !== task.status || dragOverCell.priority !== task.priority) ? 'dragging' : ''
                                 } ${task.isFrog ? 'ring-2 ring-orange-500' : ''} ${task.collapsed ? 'p-2 cursor-pointer' : `p-3 ${isMobileView ? 'cursor-default' : 'cursor-move'}`}`}
                               >
                                 {confirmDeleteId === task.id ? (
@@ -1543,12 +1842,21 @@ export default function EatThatFrog() {
                                       {!isMobileView && <GripVertical className="w-4 h-4 text-gray-400 flex-shrink-0" title="Drag to move" />}
                                       <p className="text-base sm:text-sm text-gray-800 font-medium flex-1 min-w-0 break-words line-clamp-2 sm:line-clamp-none sm:truncate leading-snug">{task.text}</p>
                                       <div className="flex items-center gap-1.5 flex-shrink-0">
-                                        {task.scheduledDate && (
-                                          <span className="text-[10px] text-gray-500 whitespace-nowrap flex items-center" title={`Scheduled: ${formatDay(task.scheduledDate)}`}>
-                                            <Calendar className="w-3 h-3 mr-0.5 flex-shrink-0" />
-                                            {new Date(task.scheduledDate + 'T12:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                                          </span>
-                                        )}
+                                        {task.scheduledDate && (() => {
+                                          const ds = getDateStatus(task);
+                                          if (ds === 'overdue') return (
+                                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-100 text-red-600 whitespace-nowrap" title={`Overdue — was due ${formatDay(task.scheduledDate)}`}>Overdue</span>
+                                          );
+                                          if (ds === 'today') return (
+                                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-600 whitespace-nowrap" title="Due today">Today</span>
+                                          );
+                                          return (
+                                            <span className="text-[10px] text-gray-500 whitespace-nowrap flex items-center" title={`Scheduled: ${formatDay(task.scheduledDate)}`}>
+                                              <Calendar className="w-3 h-3 mr-0.5 flex-shrink-0" />
+                                              {new Date(task.scheduledDate + 'T12:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                            </span>
+                                          );
+                                        })()}
                                         {(task.subtasks || []).length > 0 && (
                                           <span className="text-[10px] text-gray-500" title="Checklist">
                                             {(task.subtasks || []).filter(s => s.done).length}/{(task.subtasks || []).length}
@@ -1724,8 +2032,13 @@ export default function EatThatFrog() {
                                       <button type="button" onClick={() => setEditingDateTaskId(null)} className="text-xs text-gray-500 hover:text-gray-700">Done</button>
                                     </div>
                                   ) : task.scheduledDate ? (
-                                    <button type="button" onClick={() => setEditingDateTaskId(task.id)} className="text-xs text-gray-500 hover:text-orange-600 flex items-center gap-1" title="Change date">
-                                      <Calendar className="w-3 h-3" /> {formatDay(task.scheduledDate)}
+                                    <button type="button" onClick={() => setEditingDateTaskId(task.id)} className="flex items-center gap-1.5 text-xs hover:opacity-80 transition-opacity" title="Change scheduled date">
+                                      {(() => {
+                                        const ds = getDateStatus(task);
+                                        if (ds === 'overdue') return <span className="font-bold px-1.5 py-0.5 rounded-full bg-red-100 text-red-600">Overdue · {formatDay(task.scheduledDate)}</span>;
+                                        if (ds === 'today') return <span className="font-bold px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-600">Due today</span>;
+                                        return <span className="text-gray-500 flex items-center gap-1"><Calendar className="w-3 h-3" />{formatDay(task.scheduledDate)}</span>;
+                                      })()}
                                     </button>
                                   ) : (
                                     <button type="button" onClick={() => setEditingDateTaskId(task.id)} className="text-xs text-gray-400 hover:text-orange-600 flex items-center gap-1" title="Schedule for a day">
@@ -1791,9 +2104,14 @@ export default function EatThatFrog() {
                                   </> 
                                 )}
                               </div>
+                              </React.Fragment>
                                 );
                               });
                             })()}
+                            {/* End-of-list drop indicator: shown when dragging and cursor is below all cards */}
+                            {!isMobileView && dragOverCell?.status === status && dragOverCell?.priority === priority && dragOverCell?.insertBeforeTaskId == null && (
+                              <div className="h-1 rounded-full bg-orange-500 opacity-90 flex-shrink-0 min-h-[8px]" aria-hidden />
+                            )}
                           </div>
                         </div>
                         <div
@@ -1833,7 +2151,7 @@ export default function EatThatFrog() {
                 <strong className="text-white">How to use:</strong> Double-click a cell to add a task. Drag to change status/priority. Click text to edit. Flame = today&apos;s frog. Add note, checklist, or repeat (daily/weekly/monthly) on each card. After delete or move, the task fades in place — hover it and click <strong>Undo</strong> within 5s. Press <kbd className="px-1.5 py-0.5 bg-slate-700 rounded text-gray-300">?</kbd> for shortcuts.
               </div>
             </div>
-          </>
+          </div>
         ) : view === 'schedule' ? (
           /* Schedule View: Daily | Weekly | Monthly */
           <div className="space-y-6">
@@ -2404,5 +2722,6 @@ export default function EatThatFrog() {
         )}
       </div>
     </div>
+    </>
   );
 }

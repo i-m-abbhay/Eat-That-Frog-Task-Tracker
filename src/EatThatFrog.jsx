@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle2, Flame, TrendingUp, Trash2, Plus, BarChart3, Filter, GripVertical, Layout, Calendar, ChevronLeft, ChevronRight, ChevronDown, Settings, Search, Download, Upload, RotateCcw, Sun, Moon, Monitor, FileText, ListTodo, Undo2, HelpCircle, Repeat, Menu, X, ArrowRightLeft, Pencil } from 'lucide-react';
+import { CheckCircle2, Flame, TrendingUp, Trash2, Plus, BarChart3, Filter, GripVertical, Layout, Calendar, ChevronLeft, ChevronRight, ChevronDown, Settings, Search, Download, Upload, RotateCcw, Sun, Moon, Monitor, FileText, ListTodo, Undo2, HelpCircle, Repeat, Menu, X, ArrowRightLeft, Pencil, Timer, Play, Pause, SkipForward } from 'lucide-react';
 import { storage } from './storage';
 import {
   toDateKey,
@@ -238,6 +238,654 @@ function HelpTip({ text, className = '', id, activeId, onToggle }) {
   );
 }
 
+/* ─── Fly Bug SVG ───────────────────────────────────────────── */
+function FlyBug({ baseStyle = {}, pathAnim = '', onClick, falling = false }) {
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        cursor: falling ? 'default' : 'pointer',
+        userSelect: 'none',
+        ...baseStyle,
+        animation: falling ? 'bee-fall 0.88s ease-in forwards' : pathAnim,
+        pointerEvents: falling ? 'none' : 'auto',
+      }}
+      onClick={!falling ? onClick : undefined}
+      title={!falling ? 'Click to catch!' : undefined}
+    >
+      <svg width="20" height="18" viewBox="0 0 20 18" style={{ overflow: 'visible', filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.5))' }}>
+        {/* Left wing */}
+        <ellipse cx="6" cy="7" rx="6.5" ry="3" fill="rgba(186,230,253,0.72)" transform="rotate(-20,6,7)"
+          style={{ animation: 'fly-wing-flap 0.08s linear infinite', transformOrigin: '9.5px 8px' }} />
+        {/* Right wing */}
+        <ellipse cx="14" cy="7" rx="6.5" ry="3" fill="rgba(186,230,253,0.72)" transform="rotate(20,14,7)"
+          style={{ animation: 'fly-wing-flap 0.08s linear infinite 0.04s', transformOrigin: '10.5px 8px' }} />
+        {/* Body */}
+        <ellipse cx="10" cy="13.5" rx="3" ry="4" fill="#1c1917" />
+        {/* Body stripes */}
+        <ellipse cx="10" cy="12.5" rx="3" ry="0.9" fill="#292524" opacity="0.65" />
+        <ellipse cx="10" cy="14.8" rx="3" ry="0.9" fill="#292524" opacity="0.65" />
+        {/* Head */}
+        <circle cx="10" cy="7" r="3.8" fill="#1c1917" />
+        {/* Red compound eyes */}
+        <ellipse cx="7.2" cy="5.8" rx="2" ry="1.6" fill="#dc2626" />
+        <ellipse cx="12.8" cy="5.8" rx="2" ry="1.6" fill="#dc2626" />
+        {/* Eye shine */}
+        <circle cx="7.8"  cy="5.2" r="0.55" fill="rgba(255,255,255,0.55)" />
+        <circle cx="13.4" cy="5.2" r="0.55" fill="rgba(255,255,255,0.55)" />
+        {/* Left antenna */}
+        <line x1="8" y1="3.3" x2="5" y2="0.5" stroke="#292524" strokeWidth="0.9" />
+        <circle cx="4.8" cy="0.4" r="0.9" fill="#44403c" />
+        {/* Right antenna */}
+        <line x1="12" y1="3.3" x2="15" y2="0.5" stroke="#292524" strokeWidth="0.9" />
+        <circle cx="15.2" cy="0.4" r="0.9" fill="#44403c" />
+      </svg>
+    </div>
+  );
+}
+
+/* ─── Pet Frog SVG ──────────────────────────────────────────── */
+function PetFrog({ state = 'idle', tongueTarget = 'none', eatTarget = 'none' }) {
+  const isWorking = state === 'working';
+  const isBreak   = state === 'break';
+  const isDone    = state === 'done';
+  const isWave    = state === 'wave';
+
+  const bodyAnim = isDone
+    ? 'frog-done-jump 0.75s ease-in-out infinite'
+    : isWorking
+    ? 'frog-working-hop 2.2s ease-in-out infinite'
+    : isBreak
+    ? 'frog-break-sway 3s ease-in-out infinite'
+    : isWave
+    ? 'frog-idle-bob 1.1s ease-in-out infinite'
+    : 'frog-idle-bob 2.6s ease-in-out infinite';
+
+  return (
+    <svg viewBox="0 0 120 112" className="w-full h-full select-none" style={{ overflow: 'visible' }}>
+      {/* Whole-frog animation wrapper */}
+      <g style={{ animation: bodyAnim, transformOrigin: '60px 100px' }}>
+
+        {/* Shadow */}
+        <ellipse cx="60" cy="108" rx="28" ry="4" fill="rgba(0,0,0,0.18)" />
+
+        {/* Left arm */}
+        <path d="M 32 74 Q 18 84 22 95" stroke="#4ade80" strokeWidth="9" fill="none" strokeLinecap="round" />
+        {/* Right arm — raised and waving on hover */}
+        {isWave ? (
+          <g style={{ transformOrigin: '88px 74px', animation: 'frog-wave-arm 0.55s ease-in-out infinite' }}>
+            <path d="M 88 74 Q 102 56 106 42" stroke="#4ade80" strokeWidth="9" fill="none" strokeLinecap="round" />
+            <circle cx="106" cy="42" r="7" fill="#4ade80" />
+          </g>
+        ) : (
+          <path d="M 88 74 Q 102 84 98 95" stroke="#4ade80" strokeWidth="9" fill="none" strokeLinecap="round" />
+        )}
+
+        {/* Left foot */}
+        <ellipse cx="20" cy="97" rx="11" ry="6" fill="#22c55e" transform="rotate(-18,20,97)" />
+        <ellipse cx="12" cy="100" rx="5.5" ry="3.5" fill="#22c55e" />
+        {/* Right foot — hidden when waving (arm is raised) */}
+        {!isWave && (
+          <>
+            <ellipse cx="100" cy="97" rx="11" ry="6" fill="#22c55e" transform="rotate(18,100,97)" />
+            <ellipse cx="108" cy="100" rx="5.5" ry="3.5" fill="#22c55e" />
+          </>
+        )}
+
+        {/* Body */}
+        <ellipse cx="60" cy="76" rx="36" ry="28" fill="#4ade80" />
+        {/* Tummy */}
+        <ellipse cx="60" cy="81" rx="21" ry="16" fill="#bbf7d0" />
+
+        {/* Left eye bulge */}
+        <ellipse cx="41" cy="50" rx="15" ry="14" fill="#4ade80" />
+        {/* Right eye bulge */}
+        <ellipse cx="79" cy="50" rx="15" ry="14" fill="#4ade80" />
+
+        {/* Left eye white */}
+        <circle cx="41" cy="50" r="10.5" fill="white" />
+        {/* Right eye white */}
+        <circle cx="79" cy="50" r="10.5" fill="white" />
+
+        {/* Pupils + highlights — eat direction takes priority over tongue cycle */}
+        {(() => {
+          const eyeDir = eatTarget !== 'none' ? eatTarget : tongueTarget;
+          return [
+            [isWorking ? 43 : 42, isBreak ? 52 : 50, isWorking ? 6.5 : 5.5, '#0f172a'],
+            [isWorking ? 81 : 80, isBreak ? 52 : 50, isWorking ? 6.5 : 5.5, '#0f172a'],
+            [isWorking ? 46 : 45, isBreak ? 48 : 46, 2.5, 'white'],
+            [isWorking ? 84 : 83, isBreak ? 48 : 46, 2.5, 'white'],
+          ].map(([bx, by, r, fill], i) => (
+            <circle key={i} cx={bx} cy={by} r={r} fill={fill}
+              style={{
+                transform: `translate(${eyeDir === 'left' ? -4 : eyeDir === 'right' ? 4 : 0}px, ${eyeDir !== 'none' ? -4 : 0}px)`,
+                transition: 'transform 0.18s ease',
+              }}
+            />
+          ));
+        })()}
+
+        {/* Sleepy eyelids (break) */}
+        {isBreak && (
+          <>
+            <path d="M 31 47 Q 41 40 51 47" fill="#4ade80" />
+            <path d="M 69 47 Q 79 40 89 47" fill="#4ade80" />
+          </>
+        )}
+
+        {/* Nostrils */}
+        <circle cx="55" cy="43" r="2.5" fill="#22c55e" />
+        <circle cx="65" cy="43" r="2.5" fill="#22c55e" />
+
+        {/* Mouth expression */}
+        {(isDone || isWave) ? (
+          <path d="M 43 70 Q 60 82 77 70" stroke="#15803d" strokeWidth="2.5" fill="#bbf7d0" strokeLinecap="round" />
+        ) : isBreak ? (
+          <path d="M 50 69 Q 60 74 70 69" stroke="#15803d" strokeWidth="2.5" fill="none" strokeLinecap="round" />
+        ) : isWorking ? (
+          <path d="M 50 69 L 70 69" stroke="#15803d" strokeWidth="2.5" fill="none" strokeLinecap="round" />
+        ) : (
+          <path d="M 47 69 Q 60 76 73 69" stroke="#15803d" strokeWidth="2.5" fill="none" strokeLinecap="round" />
+        )}
+
+        {/* Working: cycling tongues — hidden while eat tongue is active */}
+        {isWorking && eatTarget === 'none' && (
+          <>
+            {/* LEFT tongue: fires first in each 5 s cycle */}
+            <g style={{ transformOrigin: '60px 67px', animation: 'frog-tongue-roll 5s ease-in-out 0s infinite backwards' }}>
+              <path d="M 60 67 Q 36 46 16 26" stroke="#fb7185" strokeWidth="5" fill="none" strokeLinecap="round" />
+              <circle cx="16" cy="26" r="5.5" fill="#fb7185" />
+              <circle cx="14" cy="23" r="1.5" fill="rgba(255,255,255,0.55)" />
+            </g>
+            {/* RIGHT tongue: fires 2.5 s later — 'backwards' keeps it hidden (scale 0) during the delay */}
+            <g style={{ transformOrigin: '60px 67px', animation: 'frog-tongue-roll 5s ease-in-out 2.5s infinite backwards' }}>
+              <path d="M 60 67 Q 86 46 106 26" stroke="#fb7185" strokeWidth="5" fill="none" strokeLinecap="round" />
+              <circle cx="106" cy="26" r="5.5" fill="#fb7185" />
+              <circle cx="108" cy="23" r="1.5" fill="rgba(255,255,255,0.55)" />
+            </g>
+          </>
+        )}
+
+        {/* Eat tongue: one-shot snap toward clicked bee */}
+        {isWorking && eatTarget !== 'none' && (
+          <g style={{ transformOrigin: '60px 67px', animation: 'frog-tongue-eat 0.72s ease-in-out forwards' }}>
+            <path
+              d={eatTarget === 'left' ? 'M 60 67 Q 36 46 16 26' : 'M 60 67 Q 86 46 106 26'}
+              stroke="#f43f5e" strokeWidth="6" fill="none" strokeLinecap="round"
+            />
+            <circle cx={eatTarget === 'left' ? 16 : 106} cy="26" r="6.5" fill="#f43f5e" />
+            <circle cx={eatTarget === 'left' ? 14 : 108} cy="23" r="2" fill="rgba(255,255,255,0.7)" />
+          </g>
+        )}
+
+        {/* Working: sweat drop */}
+        {isWorking && (
+          <g style={{ animation: 'frog-sweat-fall 1.4s ease-in infinite' }}>
+            <path d="M 94 24 Q 96.5 30 94 36 Q 91.5 30 94 24" fill="#93c5fd" opacity="0.85" />
+          </g>
+        )}
+
+        {/* Done: floating stars */}
+        {isDone && (
+          <>
+            <text x="4"  y="34" fontSize="15" style={{ animation: 'frog-star-float 0.9s ease-in-out infinite' }}>⭐</text>
+            <text x="97" y="34" fontSize="15" style={{ animation: 'frog-star-float 0.9s ease-in-out infinite 0.3s' }}>⭐</text>
+            <text x="50" y="16" fontSize="12" style={{ animation: 'frog-star-float 0.7s ease-in-out infinite 0.15s' }}>✨</text>
+          </>
+        )}
+      </g>
+    </svg>
+  );
+}
+
+/* ─── Header Frog (waves + speech bubble on hover) ─────────── */
+function HeaderFrog() {
+  const [hovered, setHovered] = React.useState(false);
+  return (
+    <div
+      className="relative flex-shrink-0 cursor-pointer w-9 h-9 sm:w-12 sm:h-12"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {/* Speech bubble */}
+      {hovered && (
+        <div
+          style={{
+            position: 'absolute',
+            bottom: 'calc(100% + 6px)',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            whiteSpace: 'nowrap',
+            background: '#22c55e',
+            color: 'white',
+            fontSize: '11px',
+            fontWeight: '700',
+            padding: '4px 10px',
+            borderRadius: '20px',
+            boxShadow: '0 3px 10px rgba(0,0,0,0.35)',
+            animation: 'frog-speech-pop 0.22s ease-out forwards',
+            zIndex: 20,
+            pointerEvents: 'none',
+          }}
+        >
+          Eat me! 🐸
+          {/* Tail */}
+          <span style={{
+            position: 'absolute',
+            top: '100%',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: 0,
+            height: 0,
+            borderLeft: '5px solid transparent',
+            borderRight: '5px solid transparent',
+            borderTop: '5px solid #22c55e',
+          }} />
+        </div>
+      )}
+      <PetFrog state={hovered ? 'wave' : 'idle'} />
+    </div>
+  );
+}
+
+/* ─── Pomodoro Timer ────────────────────────────────────────── */
+const POMO_MODES = { work: 25 * 60, short: 5 * 60, long: 15 * 60 };
+
+// Pool of spawn positions above the frog's head (left: <150 = left-side, ≥150 = right-side)
+const BEE_SPAWNS = [
+  { left: '100px', top: '10px', pathAnim: 'fly-path-1 2.4s ease-in-out infinite' },
+  { left: '165px', top: '5px',  pathAnim: 'fly-path-2 3.1s ease-in-out infinite 0.9s' },
+  { left: '118px', top: '7px',  pathAnim: 'fly-path-2 2.7s ease-in-out infinite 0.3s' },
+  { left: '148px', top: '12px', pathAnim: 'fly-path-1 2.9s ease-in-out infinite 1.2s' },
+  { left: '90px',  top: '14px', pathAnim: 'fly-path-1 2.6s ease-in-out infinite 1.6s' },
+  { left: '172px', top: '9px',  pathAnim: 'fly-path-2 2.5s ease-in-out infinite 0.5s' },
+  { left: '132px', top: '3px',  pathAnim: 'fly-path-1 3.0s ease-in-out infinite 0.7s' },
+];
+const RING_R = 54;
+const RING_CIRC = 2 * Math.PI * RING_R;
+
+function playDoneChime() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const notes = [523, 659, 784, 1047]; // C5 E5 G5 C6
+    notes.forEach((freq, i) => {
+      const osc  = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      const t = ctx.currentTime + i * 0.18;
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.22, t + 0.04);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
+      osc.start(t);
+      osc.stop(t + 0.6);
+    });
+  } catch (_) { /* AudioContext unavailable */ }
+}
+
+function PomodoroTimer({ onClose, frogTask }) {
+  const [mode, setMode]               = React.useState('work');
+  const [timeLeft, setTimeLeft]       = React.useState(POMO_MODES.work);
+  const [running, setRunning]         = React.useState(false);
+  const [phase, setPhase]             = React.useState('idle'); // 'idle' | 'running' | 'done'
+  const [sessions, setSessions]       = React.useState(0);
+  const [tongueTarget, setTongueTarget] = React.useState('none'); // 'none'|'left'|'right'
+  const [bees, setBees]               = React.useState([]);
+  const [eatTarget, setEatTarget]     = React.useState('none'); // 'none'|'left'|'right'
+  const [frogOverride, setFrogOverride] = React.useState(null); // null|'happy'
+  const intervalRef                   = React.useRef(null);
+  const totalRef                      = React.useRef(POMO_MODES.work);
+  const nextBeeIdRef                  = React.useRef(0);
+  const eatTimerRef                   = React.useRef(null);
+
+  // Cycle tongue direction to drive eye tracking — synced with CSS frog-tongue-roll (5 s cycle)
+  React.useEffect(() => {
+    const isWorkMode = running && mode === 'work';
+    if (!isWorkMode) { setTongueTarget('none'); return; }
+
+    let alive = true;
+    let step = 0;
+    const timers = [];
+
+    // Recursive schedule: fires every 2.5 s matching the 2.5 s CSS delay offset
+    const schedule = (delay) => {
+      const t = setTimeout(() => {
+        if (!alive) return;
+        setTongueTarget(step % 2 === 0 ? 'left' : 'right');
+        step++;
+        schedule(2500);
+      }, delay);
+      timers.push(t);
+    };
+
+    // First fire at 650 ms = CSS 13 % lead-in of 5 s cycle
+    schedule(650);
+
+    return () => {
+      alive = false;
+      timers.forEach(clearTimeout);
+      setTongueTarget('none');
+    };
+  }, [running, mode]);
+
+  // Spawn / clear bees when entering / leaving work mode
+  React.useEffect(() => {
+    if (running && mode === 'work') {
+      setBees(prev => {
+        const aliveCount = prev.filter(b => b.alive).length;
+        if (aliveCount >= 2) return prev;
+        const needed = 2 - aliveCount;
+        const next = [...prev];
+        for (let i = 0; i < needed; i++) {
+          const pos = BEE_SPAWNS[nextBeeIdRef.current % BEE_SPAWNS.length];
+          next.push({ id: nextBeeIdRef.current++, ...pos, alive: true });
+        }
+        return next;
+      });
+    } else {
+      setBees([]);
+    }
+  }, [running, mode]);
+
+  // Click a bee: it falls, frog snaps tongue, celebrates, then spawns replacements
+  const handleBeeClick = (bee) => {
+    if (!bee.alive || frogOverride === 'happy') return;
+
+    setBees(prev => prev.map(b => b.id === bee.id ? { ...b, alive: false } : b));
+
+    const dir = parseInt(bee.left) < 150 ? 'left' : 'right';
+    setEatTarget(dir);
+
+    clearTimeout(eatTimerRef.current);
+    eatTimerRef.current = setTimeout(() => {
+      setEatTarget('none');
+      setFrogOverride('happy');
+
+      // Remove dead bee + top up to 2 alive
+      setBees(prev => {
+        const remaining = prev.filter(b => b.id !== bee.id);
+        const aliveCount = remaining.filter(b => b.alive).length;
+        const toSpawn = Math.max(0, 2 - aliveCount);
+        const next = [...remaining];
+        for (let i = 0; i < toSpawn; i++) {
+          const pos = BEE_SPAWNS[nextBeeIdRef.current % BEE_SPAWNS.length];
+          next.push({ id: nextBeeIdRef.current++, ...pos, alive: true });
+        }
+        return next;
+      });
+
+      // Back to working after celebration
+      setTimeout(() => setFrogOverride(null), 1600);
+    }, 700);
+  };
+
+  // Switch mode (resets timer)
+  const switchMode = (m) => {
+    clearInterval(intervalRef.current);
+    setMode(m);
+    setTimeLeft(POMO_MODES[m]);
+    totalRef.current = POMO_MODES[m];
+    setRunning(false);
+    setPhase('idle');
+  };
+
+  // Start / pause
+  const toggleRunning = () => {
+    if (phase === 'done') {
+      switchMode(mode);
+      return;
+    }
+    setRunning((r) => {
+      const next = !r;
+      if (next) setPhase('running');
+      return next;
+    });
+  };
+
+  // Reset
+  const reset = () => {
+    clearInterval(intervalRef.current);
+    setRunning(false);
+    setPhase('idle');
+    setTimeLeft(POMO_MODES[mode]);
+    totalRef.current = POMO_MODES[mode];
+  };
+
+  // Countdown effect
+  React.useEffect(() => {
+    if (!running) { clearInterval(intervalRef.current); return; }
+    intervalRef.current = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(intervalRef.current);
+          setRunning(false);
+          setPhase('done');
+          if (mode === 'work') setSessions((s) => s + 1);
+          playDoneChime();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(intervalRef.current);
+  }, [running, mode]);
+
+  // Ring progress
+  const progress   = timeLeft / POMO_MODES[mode];
+  const dashOffset = RING_CIRC * (1 - progress);
+
+  // Ring color per mode
+  const ringColor = mode === 'work'
+    ? (phase === 'done' ? '#f97316' : '#f97316')
+    : mode === 'short' ? '#34d399' : '#60a5fa';
+
+  // Frog state (base — used for bees/container sizing)
+  const frogState = phase === 'done'
+    ? 'done'
+    : running
+    ? (mode === 'work' ? 'working' : 'break')
+    : 'idle';
+
+  // Effective frog state — happy override after eating a bee
+  const effectiveFrogState = frogOverride === 'happy' ? 'done' : frogState;
+
+  // Format time
+  const mm = String(Math.floor(timeLeft / 60)).padStart(2, '0');
+  const ss = String(timeLeft % 60).padStart(2, '0');
+
+  // Mode labels
+  const modeLabel = mode === 'work' ? 'Focus' : mode === 'short' ? 'Short Break' : 'Long Break';
+  const modeEmoji = mode === 'work' ? '🍅' : mode === 'short' ? '☕' : '🌿';
+
+  // Tomato session dots
+  const tomatoCount = Math.min(sessions, 8);
+
+  return (
+    <>
+      {/* Backdrop (close on click-outside) */}
+      <div
+        className="fixed inset-0 z-[90] md:hidden"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+
+      {/* Timer panel */}
+      <div
+        className="fixed bottom-4 right-4 z-[100] w-[300px] rounded-2xl shadow-2xl border border-slate-600 overflow-hidden"
+        style={{
+          background: 'linear-gradient(160deg, #1e293b 0%, #0f172a 100%)',
+          animation: 'pomodoro-slide-in 0.3s ease-out forwards',
+          ...(phase === 'done' ? { animation: 'pomodoro-done-glow 1.5s ease-in-out infinite, pomodoro-slide-in 0.3s ease-out' } : {}),
+        }}
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-label="Pomodoro Timer"
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 pt-4 pb-1">
+          <div className="flex items-center gap-2">
+            <Timer className="w-4 h-4 text-orange-400" />
+            <span className="text-white font-bold text-sm tracking-wide">Focus Timer</span>
+          </div>
+          <div className="flex items-center gap-2">
+            {/* Session dots */}
+            <div className="flex gap-0.5">
+              {Array.from({ length: Math.max(tomatoCount, 1) }).map((_, i) => (
+                <span key={i} className={`text-xs ${i < tomatoCount ? 'opacity-100' : 'opacity-20'}`}>🍅</span>
+              ))}
+            </div>
+            <button
+              onClick={onClose}
+              className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-slate-700 transition-colors"
+              aria-label="Close timer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Pet frog + flies */}
+        <div
+          className="relative flex justify-center items-end px-4 pt-1 pb-0"
+          style={{
+            height: frogState === 'working' ? '124px' : '92px',
+            transition: 'height 0.4s ease',
+          }}
+        >
+          {/* Clickable flies — only during focus work, not during happy override */}
+          {frogState === 'working' && bees.map(bee => (
+            <FlyBug
+              key={bee.id}
+              baseStyle={{ left: bee.left, top: bee.top }}
+              pathAnim={bee.pathAnim}
+              falling={!bee.alive}
+              onClick={frogOverride === null ? () => handleBeeClick(bee) : undefined}
+            />
+          ))}
+          <div style={{
+            width: frogState === 'working' ? '104px' : '90px',
+            height: frogState === 'working' ? '104px' : '90px',
+            transition: 'all 0.4s ease',
+          }}>
+            <PetFrog state={effectiveFrogState} tongueTarget={tongueTarget} eatTarget={eatTarget} />
+          </div>
+        </div>
+
+        {/* Circular progress ring + time */}
+        <div className="flex justify-center py-2">
+          <div className="relative" style={{ width: 136, height: 136 }}>
+            <svg width="136" height="136" style={{ transform: 'rotate(-90deg)' }}>
+              {/* Background track */}
+              <circle
+                cx="68" cy="68" r={RING_R}
+                fill="none"
+                stroke="#334155"
+                strokeWidth="8"
+              />
+              {/* Progress arc */}
+              <circle
+                cx="68" cy="68" r={RING_R}
+                fill="none"
+                stroke={ringColor}
+                strokeWidth="8"
+                strokeLinecap="round"
+                strokeDasharray={RING_CIRC}
+                strokeDashoffset={dashOffset}
+                style={{
+                  transition: running ? 'stroke-dashoffset 0.95s linear' : 'none',
+                  ...(running ? { animation: 'pomodoro-pulse-ring 2s ease-in-out infinite' } : {}),
+                }}
+              />
+            </svg>
+            {/* Time text overlay */}
+            <div
+              className="absolute inset-0 flex flex-col items-center justify-center"
+              style={{ pointerEvents: 'none' }}
+            >
+              <span
+                className="font-mono font-bold text-white"
+                style={{ fontSize: '2rem', lineHeight: 1, letterSpacing: '-1px' }}
+              >
+                {mm}:{ss}
+              </span>
+              <span className="text-xs text-gray-400 mt-1 font-medium">
+                {modeEmoji} {modeLabel}
+              </span>
+              {phase === 'done' && (
+                <span className="text-xs text-orange-400 font-bold mt-0.5 animate-pulse">Done!</span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Mode tabs */}
+        <div className="flex gap-1.5 px-4 pb-2">
+          {[
+            { key: 'work',  label: '25m Focus' },
+            { key: 'short', label: '5m Break'  },
+            { key: 'long',  label: '15m Break' },
+          ].map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => switchMode(key)}
+              className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all touch-manipulation ${
+                mode === key
+                  ? key === 'work'
+                    ? 'bg-orange-500 text-white'
+                    : key === 'short'
+                    ? 'bg-emerald-500 text-white'
+                    : 'bg-blue-500 text-white'
+                  : 'bg-slate-700 text-gray-400 hover:bg-slate-600 hover:text-gray-200'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Controls */}
+        <div className="flex items-center gap-2 px-4 pb-4">
+          <button
+            onClick={toggleRunning}
+            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-semibold text-sm transition-all touch-manipulation ${
+              phase === 'done'
+                ? 'bg-orange-500 hover:bg-orange-600 text-white'
+                : running
+                ? 'bg-slate-600 hover:bg-slate-500 text-white'
+                : 'bg-orange-500 hover:bg-orange-600 text-white'
+            }`}
+          >
+            {phase === 'done' ? (
+              <><SkipForward className="w-4 h-4" /> Next</>
+            ) : running ? (
+              <><Pause className="w-4 h-4" /> Pause</>
+            ) : (
+              <><Play className="w-4 h-4" /> {phase === 'idle' ? 'Start' : 'Resume'}</>
+            )}
+          </button>
+          <button
+            onClick={reset}
+            className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-700 hover:bg-slate-600 text-gray-300 hover:text-white transition-all touch-manipulation"
+            aria-label="Reset timer"
+          >
+            <RotateCcw className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Linked frog task */}
+        {frogTask && (
+          <div className="mx-4 mb-4 px-3 py-2 rounded-xl bg-orange-500/15 border border-orange-500/30 flex items-center gap-2">
+            <Flame className="w-4 h-4 text-orange-400 flex-shrink-0" />
+            <span className="text-orange-200 text-xs font-medium truncate">{frogTask.text}</span>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
 export default function EatThatFrog() {
   const [tasks, setTasks] = useState([]);
   const [view, setView] = useState('kanban');
@@ -291,6 +939,7 @@ export default function EatThatFrog() {
   const [mobileSelectedTaskId, setMobileSelectedTaskId] = useState(null);
   const [showGuideSection, setShowGuideSection] = useState(true);
   const [helpTooltipId, setHelpTooltipId] = useState(null);
+  const [showPomodoro, setShowPomodoro] = useState(false);
 
   useEffect(() => {
     if (addSheetCell) setAddSheetForm({ text: '', status: addSheetCell.status, priority: addSheetCell.priority, date: '' });
@@ -978,7 +1627,7 @@ export default function EatThatFrog() {
         <div className="mb-4 md:mb-6 animate-[slideIn_0.4s_ease-out]">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 sm:gap-4 min-w-0">
-              <Flame className="w-9 h-9 sm:w-12 sm:h-12 text-orange-500 flex-shrink-0" />
+              <HeaderFrog />
               <div className="min-w-0">
                 <h1
                   className="text-2xl sm:text-4xl md:text-5xl font-bold text-white truncate"
@@ -1043,6 +1692,16 @@ export default function EatThatFrog() {
                 title="Keyboard shortcuts (?)"
               >
                 <HelpCircle className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => setShowPomodoro((s) => !s)}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg font-semibold transition-all text-sm ${
+                  showPomodoro ? 'bg-orange-500 text-white' : 'bg-slate-700 text-gray-300 hover:bg-slate-600'
+                }`}
+                title="Pomodoro Timer"
+              >
+                <Timer className="w-4 h-4" />
+                <span className="hidden lg:inline">Timer</span>
               </button>
             </div>
 
@@ -1119,6 +1778,19 @@ export default function EatThatFrog() {
             >
               <HelpCircle className="w-5 h-5 flex-shrink-0" />
               Shortcuts
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowPomodoro((s) => !s);
+                setMobileMenuOpen(false);
+              }}
+              className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-left font-medium transition-colors touch-manipulation min-h-[44px] ${
+                showPomodoro ? 'bg-orange-500 text-white' : 'text-gray-300 hover:bg-slate-700 active:bg-slate-600'
+              }`}
+            >
+              <Timer className="w-5 h-5 flex-shrink-0" />
+              Focus Timer
             </button>
           </nav>
         </div>
@@ -2722,6 +3394,14 @@ export default function EatThatFrog() {
         )}
       </div>
     </div>
+
+    {/* Pomodoro Timer */}
+    {showPomodoro && (
+      <PomodoroTimer
+        onClose={() => setShowPomodoro(false)}
+        frogTask={tasks.find((t) => t.isFrog && t.status !== 'done') || null}
+      />
+    )}
     </>
   );
 }

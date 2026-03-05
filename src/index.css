@@ -2,6 +2,122 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Pomodoro pet-frog animations ───────────────────────────── */
+@keyframes frog-idle-bob {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-4px); }
+}
+@keyframes frog-work-bounce {
+  0%, 100% { transform: translateY(0px) scaleX(1)   scaleY(1); }
+  20%      { transform: translateY(-8px) scaleX(1.04) scaleY(0.96); }
+  40%      { transform: translateY(0px)  scaleX(0.97) scaleY(1.03); }
+  60%      { transform: translateY(-4px) scaleX(1.02) scaleY(0.98); }
+  80%      { transform: translateY(0px)  scaleX(0.99) scaleY(1.01); }
+}
+@keyframes frog-break-sway {
+  0%, 100% { transform: rotate(-3deg) translateY(0px); }
+  50%      { transform: rotate(3deg)  translateY(3px); }
+}
+@keyframes frog-done-jump {
+  0%   { transform: translateY(0px)   rotate(0deg)   scale(1); }
+  20%  { transform: translateY(-22px) rotate(-12deg) scale(1.12, 0.9); }
+  40%  { transform: translateY(-32px) rotate(12deg)  scale(1.06, 0.95); }
+  60%  { transform: translateY(-18px) rotate(-6deg)  scale(1.1, 0.92); }
+  80%  { transform: translateY(-26px) rotate(8deg)   scale(1.06, 0.95); }
+  100% { transform: translateY(0px)   rotate(0deg)   scale(1); }
+}
+@keyframes frog-star-float {
+  0%, 100% { transform: translateY(0px) rotate(0deg)   scale(1);    opacity: 1; }
+  50%      { transform: translateY(-6px) rotate(20deg) scale(1.15); opacity: 0.8; }
+}
+@keyframes frog-sweat-fall {
+  0%   { transform: translateY(0px);  opacity: 0.9; }
+  100% { transform: translateY(12px); opacity: 0; }
+}
+@keyframes pomodoro-pulse-ring {
+  0%, 100% { opacity: 0.6; }
+  50%      { opacity: 1; }
+}
+@keyframes pomodoro-slide-in {
+  from { transform: translateY(24px) scale(0.95); opacity: 0; }
+  to   { transform: translateY(0px)  scale(1);    opacity: 1; }
+}
+@keyframes pomodoro-done-glow {
+  0%, 100% { box-shadow: 0 0 0   0 rgba(249,115,22,0); }
+  50%      { box-shadow: 0 0 24px 6px rgba(249,115,22,0.45); }
+}
+
+/* ── Working-mode: frog hops left ↔ right, tongue snaps, flies buzz ── */
+@keyframes frog-working-hop {
+  0%, 100% { transform: translate(0px, 0px)     scaleX(1)    scaleY(1);    }
+  6%       { transform: translate(-2px, 3px)    scaleX(1.07) scaleY(0.88); }
+  19%      { transform: translate(-18px, -24px) scaleX(0.87) scaleY(1.14); }
+  30%      { transform: translate(-18px, 3px)   scaleX(1.12) scaleY(0.83); }
+  37%      { transform: translate(-18px, 0px)   scaleX(1)    scaleY(1);    }
+  43%      { transform: translate(-12px, 3px)   scaleX(1.07) scaleY(0.88); }
+  56%      { transform: translate(14px, -28px)  scaleX(0.85) scaleY(1.16); }
+  67%      { transform: translate(14px, 3px)    scaleX(1.13) scaleY(0.82); }
+  74%      { transform: translate(14px, 0px)    scaleX(1)    scaleY(1);    }
+  80%      { transform: translate(7px, 3px)     scaleX(1.06) scaleY(0.90); }
+  90%      { transform: translate(0px, -18px)   scaleX(0.91) scaleY(1.10); }
+  96%      { transform: translate(0px, 3px)     scaleX(1.09) scaleY(0.87); }
+}
+@keyframes frog-tongue-roll {
+  /* tongue rolls OUT from mouth, pauses, then rolls BACK in — only one tongue active per 5s cycle */
+  0%, 12%        { transform: scale(0);    opacity: 0; }
+  26%            { transform: scale(1.06); opacity: 1; }
+  33%, 52%       { transform: scale(1);    opacity: 1; }
+  65%, 100%      { transform: scale(0);    opacity: 0; }
+}
+@keyframes fly-path-1 {
+  0%   { transform: translate(0px,  0px)   rotate(5deg);   }
+  13%  { transform: translate(24px, -12px) rotate(-14deg); }
+  27%  { transform: translate(42px,  4px)  rotate(20deg);  }
+  41%  { transform: translate(30px,  24px) rotate(-8deg);  }
+  55%  { transform: translate(8px,   30px) rotate(24deg);  }
+  70%  { transform: translate(-18px, 18px) rotate(-18deg); }
+  84%  { transform: translate(-14px, -6px) rotate(10deg);  }
+  100% { transform: translate(0px,   0px)  rotate(5deg);   }
+}
+@keyframes fly-path-2 {
+  0%   { transform: translate(0px,   0px)   rotate(-8deg);  }
+  12%  { transform: translate(-22px, 14px)  rotate(16deg);  }
+  26%  { transform: translate(-36px, -3px)  rotate(-12deg); }
+  40%  { transform: translate(-22px, -22px) rotate(20deg);  }
+  54%  { transform: translate(4px,  -26px)  rotate(-6deg);  }
+  68%  { transform: translate(26px, -12px)  rotate(14deg);  }
+  82%  { transform: translate(20px,  10px)  rotate(-16deg); }
+  93%  { transform: translate(7px,   16px)  rotate(7deg);   }
+  100% { transform: translate(0px,   0px)   rotate(-8deg);  }
+}
+@keyframes fly-wing-flap {
+  0%, 100% { transform: scaleY(1);    opacity: 0.85; }
+  50%      { transform: scaleY(-0.5); opacity: 0.4;  }
+}
+@keyframes bee-fall {
+  0%   { opacity: 1; }
+  20%  { transform: translateY(10px)  rotate(30deg);  }
+  55%  { transform: translateY(52px)  rotate(115deg); opacity: 0.7; }
+  85%  { transform: translateY(78px)  rotate(175deg); opacity: 0.3; }
+  100% { transform: translateY(92px)  rotate(210deg); opacity: 0;   }
+}
+@keyframes frog-tongue-eat {
+  0%       { transform: scale(0);    opacity: 0; }
+  18%      { transform: scale(1.14); opacity: 1; }
+  38%, 60% { transform: scale(1);    opacity: 1; }
+  100%     { transform: scale(0);    opacity: 0; }
+}
+@keyframes frog-wave-arm {
+  0%, 100% { transform: rotate(0deg);   }
+  30%      { transform: rotate(-28deg); }
+  70%      { transform: rotate(20deg);  }
+}
+@keyframes frog-speech-pop {
+  0%   { transform: translateX(-50%) scale(0.6); opacity: 0; }
+  60%  { transform: translateX(-50%) scale(1.1); opacity: 1; }
+  100% { transform: translateX(-50%) scale(1);   opacity: 1; }
+}
+
 /* Confetti particle animations */
 @keyframes confetti-fall-l {
   0%   { transform: translateY(0) translateX(0) rotate(0deg) scale(1); opacity: 1; }

@@ -58,6 +58,20 @@ export function getRowProgress(tasks, priority) {
   return { done, total: all.length, pct: Math.round((done / all.length) * 100) };
 }
 
+/** Format milliseconds as Xh Ym Zs (always includes seconds). */
+export function formatDuration(ms) {
+  if (ms == null || Number.isNaN(ms) || ms < 0) return '0h 0m 0s';
+  const totalSeconds = Math.floor(ms / 1000);
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  const parts = [];
+  if (h > 0) parts.push(`${h}h`);
+  parts.push(`${m}m`);
+  parts.push(`${s}s`);
+  return parts.join(' ');
+}
+
 export function playDoneChime() {
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();

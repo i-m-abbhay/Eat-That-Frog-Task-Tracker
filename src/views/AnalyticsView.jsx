@@ -1,7 +1,24 @@
-import { CheckCircle2, TrendingUp, Flame } from 'lucide-react';
-import { getPriorityLabel, getStatusLabel } from '../utils/taskUtils';
+import { CheckCircle2, TrendingUp, Flame, Clock } from 'lucide-react';
+import { getPriorityLabel, getStatusLabel, formatDuration } from '../utils/taskUtils';
 
 export default function AnalyticsView({ tasks, stats, priorities, statuses }) {
+  const getTaskTimeMs = (t) => {
+    const base = t.totalTimeMs ?? 0;
+    if (!t.timerStartedAt) return base;
+    return base + (Date.now() - new Date(t.timerStartedAt).getTime());
+  };
+  const totalTimeMs = tasks.reduce((sum, t) => sum + getTaskTimeMs(t), 0);
+  const timeByPriority = priorities.map((p) => ({
+    priority: p,
+    ms: tasks.filter((t) => t.priority === p).reduce((s, t) => s + getTaskTimeMs(t), 0),
+  }));
+  const maxTimeByPriority = Math.max(1, ...timeByPriority.map((x) => x.ms));
+  const topTasksByTime = [...tasks]
+    .map((t) => ({ ...t, _timeMs: getTaskTimeMs(t) }))
+    .filter((t) => t._timeMs > 0)
+    .sort((a, b) => b._timeMs - a._timeMs)
+    .slice(0, 5);
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -28,6 +45,53 @@ export default function AnalyticsView({ tasks, stats, priorities, statuses }) {
           <div className="text-4xl font-bold text-white mb-2">{stats.frogStreak}</div>
           <div className="text-gray-400">Frogs Eaten</div>
         </div>
+      </div>
+
+      <div className="bg-slate-800 rounded-xl p-8">
+        <h3 className="text-2xl font-bold mb-6 text-white flex items-center gap-2">
+          <Clock className="w-7 h-7 text-amber-400" />
+          Time Tracked
+        </h3>
+        <div className="mb-6">
+          <div className="text-3xl font-bold text-white mb-1">{formatDuration(totalTimeMs)}</div>
+          <div className="text-gray-400">Total time tracked across all tasks</div>
+        </div>
+        <div className="mb-6">
+          <h4 className="text-lg font-semibold text-white mb-4">Time by priority</h4>
+          {timeByPriority.map(({ priority, ms }) => (
+            <div key={priority} className="mb-4">
+              <div className="flex justify-between mb-2">
+                <span className="font-semibold text-white">Priority {priority} - {getPriorityLabel(priority)}</span>
+                <span className="text-gray-400">{formatDuration(ms)}</span>
+              </div>
+              <div className="w-full bg-slate-700 rounded-full h-3 overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-500 ${
+                    priority === 'A' ? 'bg-red-500'
+                    : priority === 'B' ? 'bg-orange-500'
+                    : priority === 'C' ? 'bg-yellow-500'
+                    : priority === 'D' ? 'bg-blue-500'
+                    : 'bg-gray-500'
+                  }`}
+                  style={{ width: `${maxTimeByPriority ? (ms / maxTimeByPriority) * 100 : 0}%` }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+        {topTasksByTime.length > 0 && (
+          <div>
+            <h4 className="text-lg font-semibold text-white mb-4">Top 5 tasks by time spent</h4>
+            <ul className="space-y-2">
+              {topTasksByTime.map((t, i) => (
+                <li key={t.id} className="flex items-center justify-between gap-4 py-2 px-3 bg-slate-700/50 rounded-lg">
+                  <span className="text-white truncate flex-1 min-w-0" title={t.text}>{t.text}</span>
+                  <span className="text-amber-400 font-mono text-sm whitespace-nowrap">{formatDuration(t._timeMs)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
 
       <div className="bg-slate-800 rounded-xl p-8">

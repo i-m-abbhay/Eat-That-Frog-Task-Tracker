@@ -1,14 +1,14 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Flame, Filter, Search, GripVertical, Plus, Calendar,
   ChevronRight, ChevronDown, Undo2, ArrowRightLeft, Pencil,
-  FileText, ListTodo, Repeat, Trash2,
+  FileText, ListTodo, Repeat, Trash2, Play, Pause,
 } from 'lucide-react';
 import HelpTip from '../components/HelpTip';
 import { formatDay } from '../dateUtils';
 import {
   getPriorityColor, getPriorityBadgeColor, getPriorityLabel,
-  getStatusLabel, getDateStatus, getRowProgress,
+  getStatusLabel, getDateStatus, getRowProgress, formatDuration,
 } from '../utils/taskUtils';
 
 export default function KanbanView({
@@ -18,7 +18,7 @@ export default function KanbanView({
   quickAddText, setQuickAddText, quickAddPriority, setQuickAddPriority,
   quickAddColumn, setQuickAddColumn, quickAddDate, setQuickAddDate,
   quickAddInputRef, quickAdd,
-  addTask, deleteTask, updateTask, setFrog, toggleTaskCollapsed,
+  addTask, deleteTask, updateTask, startTimer, stopTimer, setFrog, toggleTaskCollapsed,
   addSubtask, toggleSubtask, removeSubtask,
   editingTaskId, editingText, setEditingText, setEditingTaskId,
   startEditing, saveEditing, editingDateTaskId, setEditingDateTaskId,
@@ -36,6 +36,45 @@ export default function KanbanView({
   showGuideSection, setShowGuideSection,
   helpTooltipId, setHelpTooltipId,
 }) {
+  const hasActiveTimer = tasks.some((t) => t.timerStartedAt);
+  const [timerTick, setTimerTick] = useState(0);
+  useEffect(() => {
+    if (!hasActiveTimer) return;
+    const id = setInterval(() => setTimerTick((n) => n + 1), 1000);
+    return () => clearInterval(id);
+  }, [hasActiveTimer]);
+
+  const getDisplayTimeMs = (task, _tick) => {
+    const base = task.totalTimeMs ?? 0;
+    if (!task.timerStartedAt) return base;
+    return base + (Date.now() - new Date(task.timerStartedAt).getTime());
+  };
+
+  const TimerControl = ({ task }) => {
+    const isRunning = !!task.timerStartedAt;
+    const displayMs = getDisplayTimeMs(task, timerTick);
+    const isDone = task.status === 'done';
+    if (isDone) {
+      return (
+        <span className="text-[10px] text-gray-500 whitespace-nowrap flex items-center gap-1" title="Time tracked">
+          {formatDuration(task.totalTimeMs ?? 0)}
+        </span>
+      );
+    }
+    return (
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); isRunning ? stopTimer(task.id) : startTimer(task.id); }}
+        className={`flex items-center gap-1 rounded px-1.5 py-0.5 touch-manipulation cursor-pointer hover:opacity-90 transition-opacity ${isRunning ? 'bg-emerald-100 text-emerald-700 animate-pulse' : 'bg-slate-100 text-slate-600'}`}
+        title={isRunning ? 'Pause' : 'Start timer'}
+        aria-label={isRunning ? 'Pause timer' : 'Start timer'}
+      >
+        {isRunning ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
+        <span className="text-[10px] font-medium tabular-nums">{formatDuration(displayMs)}</span>
+      </button>
+    );
+  };
+
   return (
     <div
       onClick={(e) => {
@@ -409,6 +448,7 @@ export default function KanbanView({
                                           {(task.subtasks || []).length > 0 && <span className="text-[10px] text-gray-500" title="Checklist">{(task.subtasks || []).filter(s => s.done).length}/{(task.subtasks || []).length}</span>}
                                           {task.notes && task.notes.trim() && <FileText className="w-3 h-3 text-gray-400 flex-shrink-0" title="Has note" />}
                                           {task.recurrence && task.recurrence !== 'none' && <Repeat className="w-3 h-3 text-gray-400 flex-shrink-0" title={`Repeats ${task.recurrence}`} />}
+                                          <TimerControl task={task} />
                                         </div>
                                         {!isMobileView && (
                                           <div className="flex gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
@@ -467,6 +507,9 @@ export default function KanbanView({
                                             <button onClick={() => setConfirmDeleteId(task.id)} className="p-1 rounded bg-gray-100 text-gray-400 hover:bg-red-100 hover:text-red-600 transition-all" title="Delete"><Trash2 className="w-3 h-3" /></button>
                                           </div>
                                         )}
+                                      </div>
+                                      <div className="mt-1.5 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                        <TimerControl task={task} />
                                       </div>
                                       {isMobileView && mobileSelectedTaskId === task.id && (
                                         <div className="flex flex-wrap gap-2 mt-2 pt-2 border-t border-gray-200" onClick={(e) => e.stopPropagation()}>

@@ -1,4 +1,5 @@
-import { Flame, Trash2 } from 'lucide-react';
+import { Flame, Trash2, Clock } from 'lucide-react';
+import { formatDuration } from '../utils/taskUtils';
 
 export default function ScheduleTaskCard({
   task,
@@ -43,10 +44,16 @@ export default function ScheduleTaskCard({
             </p>
           )}
         </div>
-        <div className="flex items-center gap-1 flex-shrink-0">
+        <div className="flex items-center gap-1 flex-shrink-0 flex-wrap">
           <span className={`${getPriorityBadgeColor(task.priority)} rounded px-1.5 py-0.5 font-bold text-xs`}>
             {task.priority}
           </span>
+          {(task.totalTimeMs ?? 0) > 0 && (
+            <span className="text-[10px] text-gray-500 flex items-center gap-0.5 rounded px-1.5 py-0.5 bg-slate-100" title="Time tracked">
+              <Clock className="w-3 h-3" />
+              {formatDuration(task.totalTimeMs)}
+            </span>
+          )}
           {!compact && <span className="text-gray-400 text-xs hidden sm:inline">{getStatusLabel(task.status)}</span>}
           <button
             onClick={() => setFrog(task.id)}

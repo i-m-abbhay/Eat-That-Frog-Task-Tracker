@@ -113,7 +113,17 @@ export default function EatThatFrog() {
       try {
         const tasksResult = await storage.get('frog-tasks-kanban');
         const statsResult = await storage.get('frog-stats-kanban');
-        if (tasksResult?.value) setTasks(JSON.parse(tasksResult.value));
+        if (tasksResult?.value) {
+          const loaded = JSON.parse(tasksResult.value);
+          const normalized = Array.isArray(loaded)
+            ? loaded.map((t) => ({
+                ...t,
+                totalTimeMs: t.totalTimeMs ?? 0,
+                timerStartedAt: null, // never persist running state; clear orphaned timers on load
+              }))
+            : [];
+          setTasks(normalized);
+        }
         if (statsResult?.value) setStats(JSON.parse(statsResult.value));
       } catch {
         console.log('No saved data found, starting fresh');
@@ -188,6 +198,7 @@ export default function EatThatFrog() {
       createdAt: new Date().toISOString(), isFrog: false,
       scheduledDate: scheduledDate || undefined, notes: '',
       subtasks: [], recurrence: 'none', collapsed: false,
+      totalTimeMs: 0, timerStartedAt: null,
     };
     setTasks([task, ...tasks]);
   };
@@ -236,6 +247,28 @@ export default function EatThatFrog() {
 
   const updateTask = (id, updates) => {
     setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...updates } : t)));
+  };
+
+  const startTimer = (id) => {
+    setTasks((prev) =>
+      prev.map((t) =>
+        t.id === id ? { ...t, timerStartedAt: new Date().toISOString() } : t
+      )
+    );
+  };
+
+  const stopTimer = (id) => {
+    setTasks((prev) =>
+      prev.map((t) => {
+        if (t.id !== id || !t.timerStartedAt) return t;
+        const elapsed = Date.now() - new Date(t.timerStartedAt).getTime();
+        return {
+          ...t,
+          totalTimeMs: (t.totalTimeMs ?? 0) + elapsed,
+          timerStartedAt: null,
+        };
+      })
+    );
   };
 
   const toggleTaskCollapsed = (id) => {
@@ -359,16 +392,21 @@ export default function EatThatFrog() {
     pushUndo(tasks, stats, task, task.status, task.priority, indexInCell);
 
     setTasks((prev) => {
-      let next = prev.map((t) =>
-        t.id === taskId
-          ? { ...t, status: newStatus ?? t.status, priority: newPriority ?? t.priority, completedAt: newStatus === 'done' && wasNotDone ? new Date().toISOString() : t.completedAt }
-          : t
-      );
+      let next = prev.map((t) => {
+        if (t.id !== taskId) return t;
+        const updates = { status: newStatus ?? t.status, priority: newPriority ?? t.priority, completedAt: newStatus === 'done' && wasNotDone ? new Date().toISOString() : t.completedAt };
+        if (newStatus === 'done' && t.timerStartedAt) {
+          const elapsed = Date.now() - new Date(t.timerStartedAt).getTime();
+          updates.totalTimeMs = (t.totalTimeMs ?? 0) + elapsed;
+          updates.timerStartedAt = null;
+        }
+        return { ...t, ...updates };
+      });
       if (newStatus === 'done' && wasNotDone && task.recurrence && task.recurrence !== 'none') {
         const from = task.scheduledDate || (task.createdAt || '').slice(0, 10);
         const nextDate = getNextRecurrenceDate(task.recurrence, from);
         if (nextDate) {
-          const copy = { ...task, id: Date.now(), status: 'todo', createdAt: new Date().toISOString(), scheduledDate: nextDate, isFrog: false, completedAt: undefined };
+          const copy = { ...task, id: Date.now(), status: 'todo', createdAt: new Date().toISOString(), scheduledDate: nextDate, isFrog: false, completedAt: undefined, totalTimeMs: 0, timerStartedAt: null };
           next = [copy, ...next];
         }
       }
@@ -835,12 +873,20 @@ export default function EatThatFrog() {
                     <div className="flex gap-2">
                       <button type="button" onClick={() => {
                         const wasNotDone = editTask.status !== 'done';
+                        const timerStop =
+                          editSheetForm.status === 'done' && editTask.timerStartedAt
+                            ? {
+                                totalTimeMs: (editTask.totalTimeMs ?? 0) + (Date.now() - new Date(editTask.timerStartedAt).getTime()),
+                                timerStartedAt: null,
+                              }
+                            : {};
                         updateTask(editSheetTaskId, {
                           text: editSheetForm.text.trim() || editTask.text,
                           status: editSheetForm.status, priority: editSheetForm.priority,
                           scheduledDate: editSheetForm.scheduledDate || undefined,
                           notes: editSheetForm.notes, recurrence: editSheetForm.recurrence,
                           ...(editSheetForm.status === 'done' && wasNotDone ? { completedAt: new Date().toISOString() } : {}),
+                          ...timerStop,
                         });
                         if (wasNotDone && editSheetForm.status === 'done') {
                           const taskDate = new Date(editTask.createdAt).toDateString();
@@ -874,6 +920,7 @@ export default function EatThatFrog() {
               quickAddDate={quickAddDate} setQuickAddDate={setQuickAddDate}
               quickAddInputRef={quickAddInputRef} quickAdd={quickAdd}
               addTask={addTask} deleteTask={deleteTask} updateTask={updateTask}
+              startTimer={startTimer} stopTimer={stopTimer}
               setFrog={setFrog} toggleTaskCollapsed={toggleTaskCollapsed}
               addSubtask={addSubtask} toggleSubtask={toggleSubtask} removeSubtask={removeSubtask}
               editingTaskId={editingTaskId} editingText={editingText}

@@ -383,7 +383,7 @@ export default function EatThatFrog() {
   };
 
   const setFrog = (id) => {
-    setTasks(tasks.map((t) => ({ ...t, isFrog: t.id === id ? !t.isFrog : false })));
+    setTasks(tasks.map((t) => ({ ...t, isFrog: t.id === id ? !t.isFrog : t.isFrog })));
   };
 
   const moveTask = (taskId, newStatus, newPriority) => {
@@ -550,7 +550,7 @@ export default function EatThatFrog() {
       taskMatchesSearch(t)
     );
 
-  const todaysFrog = tasks.find((t) => t.isFrog && t.status !== 'done');
+  const todaysFrogs = tasks.filter((t) => t.isFrog && t.status !== 'done');
   const todayKey = getTodayKey();
 
   const tasksWithDate = tasks.filter((t) => t.scheduledDate && taskMatchesSearch(t));
@@ -925,7 +925,7 @@ export default function EatThatFrog() {
           {/* View Router */}
           {view === 'kanban' && showFocusMode ? (
             <FocusModeView
-              todaysFrog={todaysFrog}
+              todaysFrogs={todaysFrogs}
               setShowFocusMode={setShowFocusMode}
               startTimer={startTimer}
               stopTimer={stopTimer}
@@ -937,7 +937,7 @@ export default function EatThatFrog() {
           ) : view === 'kanban' ? (
             <KanbanView
               tasks={tasks} priorities={priorities} statuses={statuses}
-              todaysFrog={todaysFrog}
+              todaysFrogs={todaysFrogs}
               filterFrog={filterFrog} setFilterFrog={setFilterFrog}
               filterPriority={filterPriority} setFilterPriority={setFilterPriority}
               searchQuery={searchQuery} setSearchQuery={setSearchQuery}

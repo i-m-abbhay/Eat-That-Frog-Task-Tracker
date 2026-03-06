@@ -12,7 +12,7 @@ import {
 } from '../utils/taskUtils';
 
 export default function KanbanView({
-  tasks, priorities, statuses, todaysFrog,
+  tasks, priorities, statuses, todaysFrogs,
   filterFrog, setFilterFrog, filterPriority, setFilterPriority,
   searchQuery, setSearchQuery, taskMatchesSearch, getFilteredTasks,
   quickAddText, setQuickAddText, quickAddPriority, setQuickAddPriority,
@@ -104,20 +104,26 @@ export default function KanbanView({
         </div>
       )}
 
-      {/* Today's Frog Banner */}
-      {todaysFrog && (
+      {/* Today's Frogs Banner */}
+      {todaysFrogs.length > 0 && (
         <div className="mb-4 md:mb-6 bg-gradient-to-r from-orange-600 to-red-600 rounded-xl p-4 sm:p-6 text-white shadow-2xl frog-glow">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="flex items-start gap-3 sm:gap-4 min-w-0">
+            <div className="flex items-start gap-3 sm:gap-4 min-w-0 flex-1">
               <Flame className="w-9 h-9 sm:w-10 sm:h-10 flex-shrink-0" />
-              <div className="min-w-0">
-                <div className="text-xs sm:text-sm font-semibold opacity-90 uppercase tracking-wider">Today&apos;s Frog</div>
-                <div className="text-lg sm:text-2xl font-bold break-words">{todaysFrog.text}</div>
+              <div className="min-w-0 flex-1">
+                <div className="text-xs sm:text-sm font-semibold opacity-90 uppercase tracking-wider">
+                  Today&apos;s Frog{todaysFrogs.length > 1 ? 's' : ''} ({todaysFrogs.length})
+                </div>
+                <ul className="mt-1 space-y-1">
+                  {todaysFrogs.map((frog) => (
+                    <li key={frog.id} className="flex flex-wrap items-center gap-2">
+                      <span className="text-lg sm:text-xl font-bold break-words">{frog.text}</span>
+                      <span className="px-2 py-0.5 bg-white/20 rounded text-xs font-bold">Priority {frog.priority}</span>
+                      <span className="px-2 py-0.5 bg-white/20 rounded text-xs font-medium">{getStatusLabel(frog.status)}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
-            </div>
-            <div className="flex flex-wrap gap-2 sm:gap-3">
-              <span className="px-3 py-1.5 sm:px-4 sm:py-2 bg-white/20 rounded-lg text-xs sm:text-sm font-bold">Priority {todaysFrog.priority}</span>
-              <span className="px-3 py-1.5 sm:px-4 sm:py-2 bg-white/20 rounded-lg text-xs sm:text-sm font-bold">{getStatusLabel(todaysFrog.status)}</span>
             </div>
           </div>
         </div>

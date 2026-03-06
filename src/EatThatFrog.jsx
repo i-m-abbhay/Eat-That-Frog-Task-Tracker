@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Layout, Calendar, BarChart3, Settings, FileText,
-  HelpCircle, Timer, Menu, X,
+  HelpCircle, Timer, Menu, X, Focus, Flame,
 } from 'lucide-react';
 import { storage } from './storage';
 import {
@@ -9,13 +9,14 @@ import {
   isInWeek, isInMonth, getNextRecurrenceDate,
 } from './dateUtils';
 import { STATUSES, PRIORITIES, DEFAULT_ROW_HEIGHT, MIN_ROW_HEIGHT, MAX_ROW_HEIGHT } from './constants';
-import { getStatusLabel, getPriorityBadgeColor } from './utils/taskUtils';
+import { getStatusLabel, getPriorityBadgeColor, formatDuration } from './utils/taskUtils';
 
 import Confetti from './components/Confetti';
 import HeaderFrog from './components/HeaderFrog';
 import PomodoroTimer from './components/PomodoroTimer';
 
 import KanbanView from './views/KanbanView';
+import FocusModeView from './views/FocusModeView';
 import ScheduleView from './views/ScheduleView';
 import AboutView from './views/AboutView';
 import SettingsView from './views/SettingsView';
@@ -73,6 +74,7 @@ export default function EatThatFrog() {
   const [showGuideSection, setShowGuideSection] = useState(true);
   const [helpTooltipId, setHelpTooltipId] = useState(null);
   const [showPomodoro, setShowPomodoro] = useState(false);
+  const [showFocusMode, setShowFocusMode] = useState(false);
 
   const statuses = STATUSES;
   const priorities = PRIORITIES;
@@ -623,7 +625,7 @@ export default function EatThatFrog() {
                 ].map(({ id, label, Icon }) => (
                   <button
                     key={id}
-                    onClick={() => { setView(id); if (id === 'schedule') setFocusDate(getTodayKey()); }}
+                    onClick={() => { setView(id); if (id === 'kanban') setShowFocusMode(false); if (id === 'schedule') setFocusDate(getTodayKey()); }}
                     className={`px-3 py-2 rounded-lg font-semibold transition-all text-sm ${view === id ? 'bg-orange-500 text-white' : 'bg-slate-700 text-gray-300 hover:bg-slate-600'}`}
                   >
                     <Icon className="w-4 h-4 inline mr-1.5" />{label}
@@ -636,6 +638,16 @@ export default function EatThatFrog() {
                 >
                   <HelpCircle className="w-5 h-5" />
                 </button>
+                {view === 'kanban' && (
+                  <button
+                    onClick={() => setShowFocusMode(true)}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-semibold transition-all text-sm bg-slate-700 text-gray-300 hover:bg-slate-600"
+                    title="Focus mode"
+                  >
+                    <Focus className="w-4 h-4" />
+                    <span className="hidden lg:inline">Focus</span>
+                  </button>
+                )}
                 <button
                   onClick={() => setShowPomodoro((s) => !s)}
                   className={`flex items-center gap-1.5 px-3 py-2 rounded-lg font-semibold transition-all text-sm ${showPomodoro ? 'bg-orange-500 text-white' : 'bg-slate-700 text-gray-300 hover:bg-slate-600'}`}
@@ -678,13 +690,18 @@ export default function EatThatFrog() {
                 { id: 'about', label: 'About', icon: FileText },
                 { id: 'settings', label: 'Settings', icon: Settings },
               ].map(({ id, label, icon: Icon, onSelect }) => (
-                <button key={id} type="button" onClick={() => { setView(id); onSelect?.(); setMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-left font-medium transition-colors touch-manipulation min-h-[44px] ${view === id ? 'bg-orange-500 text-white' : 'text-gray-300 hover:bg-slate-700 active:bg-slate-600'}`}>
+                <button key={id} type="button" onClick={() => { setView(id); if (id === 'kanban') setShowFocusMode(false); onSelect?.(); setMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-left font-medium transition-colors touch-manipulation min-h-[44px] ${view === id ? 'bg-orange-500 text-white' : 'text-gray-300 hover:bg-slate-700 active:bg-slate-600'}`}>
                   <Icon className="w-5 h-5 flex-shrink-0" />{label}
                 </button>
               ))}
               <button type="button" onClick={() => { setShowShortcuts(true); setMobileMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-left font-medium text-gray-300 hover:bg-slate-700 active:bg-slate-600 transition-colors touch-manipulation min-h-[44px]">
                 <HelpCircle className="w-5 h-5 flex-shrink-0" />Shortcuts
               </button>
+              {view === 'kanban' && (
+                <button type="button" onClick={() => { setView('kanban'); setShowFocusMode(true); setMobileMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-left font-medium text-gray-300 hover:bg-slate-700 active:bg-slate-600 transition-colors touch-manipulation min-h-[44px]">
+                  <Focus className="w-5 h-5 flex-shrink-0" />Focus mode
+                </button>
+              )}
               <button type="button" onClick={() => { setShowPomodoro((s) => !s); setMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-left font-medium transition-colors touch-manipulation min-h-[44px] ${showPomodoro ? 'bg-orange-500 text-white' : 'text-gray-300 hover:bg-slate-700 active:bg-slate-600'}`}>
                 <Timer className="w-5 h-5 flex-shrink-0" />Focus Timer
               </button>
@@ -906,7 +923,18 @@ export default function EatThatFrog() {
           })()}
 
           {/* View Router */}
-          {view === 'kanban' ? (
+          {view === 'kanban' && showFocusMode ? (
+            <FocusModeView
+              todaysFrog={todaysFrog}
+              setShowFocusMode={setShowFocusMode}
+              startTimer={startTimer}
+              stopTimer={stopTimer}
+              formatDuration={formatDuration}
+              getStatusLabel={getStatusLabel}
+              getPriorityBadgeColor={getPriorityBadgeColor}
+              setShowPomodoro={setShowPomodoro}
+            />
+          ) : view === 'kanban' ? (
             <KanbanView
               tasks={tasks} priorities={priorities} statuses={statuses}
               todaysFrog={todaysFrog}

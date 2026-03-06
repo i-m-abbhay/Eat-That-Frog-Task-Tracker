@@ -238,82 +238,72 @@ export default function KanbanView({
           if (isMobileView && mobileSelectedTaskId && !e.target.closest('.task-card')) setMobileSelectedTaskId(null);
         }}
       >
-        <div className="inline-flex gap-1 min-w-full">
-          {/* Header Column for Priority Labels */}
-          <div className="w-20 sm:w-28 md:w-32 flex-shrink-0">
-            <div className="h-12 sm:h-14 bg-slate-800 rounded-t-lg mb-1 flex items-center justify-center gap-1">
-              <span className="text-gray-400 text-xs font-semibold uppercase tracking-wider">Priority</span>
-              <HelpTip id="priority" activeId={helpTooltipId} onToggle={setHelpTooltipId} text="Rows are priority: A = Must do, B = Should do, C = Nice to do, D = Delegate, E = Eliminate. Put your most important tasks in row A." />
-            </div>
-            {priorities.map((priority) => (
-              <React.Fragment key={priority}>
-                <div
-                  style={{ height: rowHeights[priority] }}
-                  className="bg-slate-800 rounded-lg mb-0 flex items-center justify-center flex-shrink-0"
-                >
-                  <div className="text-center px-0.5 w-full">
-                    <div className={`text-xl sm:text-2xl md:text-3xl font-bold mb-0.5 sm:mb-1 ${getPriorityBadgeColor(priority)} w-9 h-9 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-lg flex items-center justify-center mx-auto`}>
-                      {priority}
-                    </div>
-                    <div className="text-[10px] sm:text-xs text-gray-400 font-semibold leading-tight">{getPriorityLabel(priority)}</div>
-                    {(() => {
-                      const prog = getRowProgress(tasks, priority);
-                      if (!prog) return null;
-                      return (
-                        <div className="mt-1.5 px-1" title={`${prog.done} / ${prog.total} done`}>
-                          <div className="w-full bg-slate-700 rounded-full h-1.5 overflow-hidden">
-                            <div
-                              className="h-full rounded-full transition-all duration-500"
-                              style={{
-                                width: `${prog.pct}%`,
-                                background: prog.pct === 100 ? '#34d399' : prog.pct >= 50 ? '#f97316' : '#64748b',
-                              }}
-                            />
-                          </div>
-                          <div className="text-[9px] text-gray-500 mt-0.5">{prog.done}/{prog.total}</div>
-                        </div>
-                      );
-                    })()}
-                  </div>
-                </div>
-                <div
-                  role="separator"
-                  aria-label={`Resize row ${priority}`}
-                  onMouseDown={(e) => handleResizeStart(priority, e)}
-                  className={`kanban-resize-handle hidden md:flex flex-shrink-0 cursor-ns-resize flex-col items-center justify-center gap-0.5 py-1.5 mb-1 rounded-md select-none ${resizingPriority === priority ? 'active bg-orange-500 text-white' : 'bg-slate-700/80 hover:bg-slate-600 text-slate-400'}`}
-                  title="Drag to resize row"
-                >
-                  <span className="grip-line" />
-                  <span className="grip-line" />
-                  <span className="grip-line" />
-                </div>
-              </React.Fragment>
-            ))}
+        <div
+          className="min-w-full gap-1"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'minmax(5rem, 8rem) minmax(200px, 1fr) minmax(200px, 1fr) minmax(200px, 1fr)',
+            gridTemplateRows: `auto ${priorities.map((p) => `${rowHeights[p]}px auto`).join(' ')}`,
+          }}
+        >
+          {/* Header row */}
+          <div className="h-12 sm:h-14 bg-slate-800 rounded-t-lg flex items-center justify-center gap-1">
+            <span className="text-gray-400 text-xs font-semibold uppercase tracking-wider">Priority</span>
+            <HelpTip id="priority" activeId={helpTooltipId} onToggle={setHelpTooltipId} text="Rows are priority: A = Must do, B = Should do, C = Nice to do, D = Delegate, E = Eliminate. Put your most important tasks in row A." />
           </div>
-
-          {/* Status Columns */}
           {statuses.map((status, idx) => (
-            <div key={status} className="flex-1 min-w-[200px] sm:min-w-[240px] md:min-w-[280px]">
-              <div className="h-14 bg-slate-800 rounded-t-lg mb-1 flex items-center justify-center gap-1">
-                <div className="text-center">
-                  <div className="text-white font-bold text-lg uppercase tracking-wider flex items-center justify-center gap-1">
-                    {getStatusLabel(status)}
-                    {idx === 0 && (
-                      <HelpTip id="status" activeId={helpTooltipId} onToggle={setHelpTooltipId} text="Columns are status: To Do → In Progress → Done. Drag tasks between columns to update their status." />
-                    )}
-                  </div>
+            <div key={status} className="h-14 bg-slate-800 rounded-t-lg flex items-center justify-center gap-1">
+              <div className="text-center">
+                <div className="text-white font-bold text-lg uppercase tracking-wider flex items-center justify-center gap-1">
+                  {getStatusLabel(status)}
+                  {idx === 0 && (
+                    <HelpTip id="status" activeId={helpTooltipId} onToggle={setHelpTooltipId} text="Columns are status: To Do → In Progress → Done. Drag tasks between columns to update their status." />
+                  )}
                 </div>
               </div>
-
-              {priorities.map((priority) => {
+            </div>
+          ))}
+          {priorities.map((priority) => (
+            <React.Fragment key={priority}>
+              {/* Priority cell */}
+              <div
+                style={{ height: rowHeights[priority] }}
+                className="bg-slate-800 rounded-lg flex items-center justify-center flex-shrink-0"
+              >
+                <div className="text-center px-0.5 w-full">
+                  <div className={`text-xl sm:text-2xl md:text-3xl font-bold mb-0.5 sm:mb-1 ${getPriorityBadgeColor(priority)} w-9 h-9 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-lg flex items-center justify-center mx-auto`}>
+                    {priority}
+                  </div>
+                  <div className="text-[10px] sm:text-xs text-gray-400 font-semibold leading-tight">{getPriorityLabel(priority)}</div>
+                  {(() => {
+                    const prog = getRowProgress(tasks, priority);
+                    if (!prog) return null;
+                    return (
+                      <div className="mt-1.5 px-1" title={`${prog.done} / ${prog.total} done`}>
+                        <div className="w-full bg-slate-700 rounded-full h-1.5 overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all duration-500"
+                            style={{
+                              width: `${prog.pct}%`,
+                              background: prog.pct === 100 ? '#34d399' : prog.pct >= 50 ? '#f97316' : '#64748b',
+                            }}
+                          />
+                        </div>
+                        <div className="text-[9px] text-gray-500 mt-0.5">{prog.done}/{prog.total}</div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+              {/* Status cells for this row */}
+              {statuses.map((status) => {
                 const cellTasks = getFilteredTasks(status, priority);
                 const count = cellTasks.length;
-
                 return (
-                  <React.Fragment key={`${status}-${priority}`}>
                     <div
+                      key={status}
                       style={{ height: rowHeights[priority] }}
-                      className={`kanban-column group ${getPriorityColor(priority)} border-2 rounded-lg mb-0 p-2 overflow-y-auto flex-shrink-0 ${
+                      className={`kanban-column group ${getPriorityColor(priority)} border-2 rounded-lg p-2 overflow-y-auto ${
                         dragOverCell?.status === status && dragOverCell?.priority === priority ? 'drag-over' : ''
                       } ${addTaskCell?.status === status && addTaskCell?.priority === priority ? 'ring-2 ring-orange-500 ring-inset' : ''}`}
                       onDragOver={(e) => handleDragOver(e, status, priority)}
@@ -615,21 +605,20 @@ export default function KanbanView({
                         )}
                       </div>
                     </div>
-                    <div
-                      role="separator"
-                      aria-label={`Resize row ${priority}`}
-                      onMouseDown={(e) => handleResizeStart(priority, e)}
-                      className={`kanban-resize-handle hidden md:flex flex-shrink-0 cursor-ns-resize flex-col items-center justify-center gap-0.5 py-1.5 mb-1 rounded-md select-none ${resizingPriority === priority ? 'active bg-orange-500 text-white' : 'bg-slate-700/80 hover:bg-slate-600 text-slate-400'}`}
-                      title="Drag to resize row"
-                    >
-                      <span className="grip-line" />
-                      <span className="grip-line" />
-                      <span className="grip-line" />
-                    </div>
-                  </React.Fragment>
                 );
               })}
-            </div>
+              {/* Full-width resize handle for this row */}
+              <div
+                role="separator"
+                aria-label={`Resize row ${priority}`}
+                onMouseDown={(e) => handleResizeStart(priority, e)}
+                style={{ gridColumn: '1 / -1' }}
+                className={`kanban-resize-handle hidden md:flex w-full cursor-ns-resize flex-col items-center justify-center gap-0.5 py-0.5 rounded-md select-none ${resizingPriority === priority ? 'active bg-orange-500 text-white' : 'bg-slate-700/80 hover:bg-slate-600 text-slate-400'}`}
+                title="Drag to resize this row"
+              >
+                <span className="grip-line" />
+              </div>
+            </React.Fragment>
           ))}
         </div>
       </div>

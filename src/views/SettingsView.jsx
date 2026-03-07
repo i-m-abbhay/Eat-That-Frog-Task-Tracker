@@ -1,6 +1,8 @@
-import { Sun, Moon, Monitor, Download, Upload, Layout, RotateCcw } from 'lucide-react';
+import { Sun, Moon, Monitor, Download, Upload, Layout, RotateCcw, Cloud, Copy, RefreshCw, ExternalLink } from 'lucide-react';
 import { getCutoffForPreset, formatCutoffLabel } from '../dateUtils';
 import { DEFAULT_ROW_HEIGHT } from '../constants';
+
+const FIREBASE_CONFIG_KEYS = ['apiKey', 'databaseURL', 'projectId', 'appId'];
 
 export default function SettingsView({
   theme, setTheme,
@@ -9,9 +11,110 @@ export default function SettingsView({
   handleResetStats,
   settingsClearBeforeDate, setSettingsClearBeforeDate,
   handleClearWithConfirm,
+  syncEnabled, setSyncEnabled,
+  syncConfig, setSyncConfig,
+  syncCode, setSyncCode,
+  syncStatus,
 }) {
+  const updateSyncConfig = (key, value) => {
+    setSyncConfig((prev) => ({ ...(prev || {}), [key]: value }));
+  };
+  const copySyncCode = () => {
+    if (syncCode) {
+      navigator.clipboard?.writeText(syncCode);
+      window.alert('Sync code copied to clipboard.');
+    }
+  };
+  const generateSyncCode = () => {
+    setSyncCode('frog-' + Math.random().toString(36).slice(2, 9));
+  };
+
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
+      {/* Sync */}
+      <div className="bg-slate-800 rounded-xl p-6">
+        <h2 className="text-xl font-bold text-white mb-1 flex items-center gap-2">
+          <Cloud className="w-5 h-5" /> Sync across devices
+        </h2>
+        <p className="text-gray-400 text-sm mb-4">
+          Use the same sync code on your phone and desktop to keep tasks in sync. One-time Firebase setup required.
+        </p>
+        <div className="flex items-center gap-3 mb-4">
+          <button
+            type="button"
+            onClick={() => setSyncEnabled(!syncEnabled)}
+            className={`relative inline-flex h-7 w-12 shrink-0 rounded-full transition-colors ${
+              syncEnabled ? 'bg-orange-500' : 'bg-slate-600'
+            }`}
+          >
+            <span
+              className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform mt-1 ${
+                syncEnabled ? 'translate-x-6 ml-0.5' : 'translate-x-1'
+              }`}
+            />
+          </button>
+          <span className="text-gray-300 text-sm font-medium">{syncEnabled ? 'Sync on' : 'Sync off'}</span>
+          {syncStatus && (
+            <span className={`text-xs px-2 py-0.5 rounded-full ${
+              syncStatus === 'connected' ? 'bg-green-900/50 text-green-200' :
+              syncStatus === 'offline' ? 'bg-amber-900/50 text-amber-200' :
+              'bg-slate-600 text-gray-300'
+            }`}>
+              {syncStatus === 'connected' ? 'Connected' : syncStatus === 'offline' ? 'Offline' : 'Not configured'}
+            </span>
+          )}
+        </div>
+        {syncEnabled && (
+          <div className="space-y-4 pt-2 border-t border-slate-600">
+            <p className="text-gray-300 text-sm font-medium">Firebase config (one-time)</p>
+            <p className="text-gray-500 text-xs">
+              Create a project at{' '}
+              <a href="https://console.firebase.google.com" target="_blank" rel="noopener noreferrer" className="text-orange-400 hover:underline inline-flex items-center gap-1">
+                console.firebase.google.com <ExternalLink className="w-3 h-3" />
+              </a>
+              , add a Web app, then enable Realtime Database (test mode). Paste the 4 values below.
+            </p>
+            <div className="grid gap-2">
+              {FIREBASE_CONFIG_KEYS.map((key) => (
+                <input
+                  key={key}
+                  type="text"
+                  placeholder={key}
+                  value={syncConfig?.[key] ?? ''}
+                  onChange={(e) => updateSyncConfig(key, e.target.value)}
+                  className="px-3 py-2 bg-slate-700 text-white rounded-lg border border-slate-600 focus:border-orange-500 focus:outline-none text-sm font-mono"
+                />
+              ))}
+            </div>
+            <p className="text-gray-300 text-sm font-medium">Sync code — use the same on all devices</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                type="text"
+                placeholder="e.g. frog-4f2a9c or paste from another device"
+                value={syncCode}
+                onChange={(e) => setSyncCode(e.target.value)}
+                className="flex-1 min-w-[180px] px-3 py-2 bg-slate-700 text-white rounded-lg border border-slate-600 focus:border-orange-500 focus:outline-none text-sm font-mono"
+              />
+              <button
+                type="button"
+                onClick={copySyncCode}
+                disabled={!syncCode}
+                className="flex items-center gap-1 px-3 py-2 rounded-lg bg-slate-600 text-gray-200 hover:bg-slate-500 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+              >
+                <Copy className="w-4 h-4" /> Copy
+              </button>
+              <button
+                type="button"
+                onClick={generateSyncCode}
+                className="flex items-center gap-1 px-3 py-2 rounded-lg bg-slate-600 text-gray-200 hover:bg-slate-500 text-sm font-medium"
+              >
+                <RefreshCw className="w-4 h-4" /> Regenerate
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Theme */}
       <div className="bg-slate-800 rounded-xl p-6">
         <h2 className="text-xl font-bold text-white mb-1">Theme</h2>

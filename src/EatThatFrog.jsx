@@ -4,6 +4,7 @@ import {
   HelpCircle, Timer, Menu, X, Focus, Flame,
 } from 'lucide-react';
 import { storage } from './storage';
+import { initSync } from './syncService';
 import {
   getTodayKey, getWeekStart, getMonthStart,
   isInWeek, isInMonth, getNextRecurrenceDate,
@@ -75,6 +76,21 @@ export default function EatThatFrog() {
   const [helpTooltipId, setHelpTooltipId] = useState(null);
   const [showPomodoro, setShowPomodoro] = useState(false);
   const [showFocusMode, setShowFocusMode] = useState(false);
+
+  // Sync (Firebase): config and code from localStorage; status from connection
+  const [syncConfig, setSyncConfig] = useState(() => {
+    try {
+      const raw = localStorage.getItem('frog-sync-config');
+      if (raw) return JSON.parse(raw);
+    } catch (_) {}
+    return null;
+  });
+  const [syncCode, setSyncCode] = useState(() => localStorage.getItem('frog-sync-code') || '');
+  const [syncEnabled, setSyncEnabled] = useState(() => localStorage.getItem('frog-sync-enabled') === 'true');
+  const [syncStatus, setSyncStatus] = useState(''); // '', 'not_configured', 'connected', 'offline'
+  const syncRef = React.useRef(null);
+  const lastAppliedUpdatedAtRef = React.useRef(0);
+  const applyingFromSyncRef = React.useRef(false);
 
   const statuses = STATUSES;
   const priorities = PRIORITIES;
@@ -190,6 +206,61 @@ export default function EatThatFrog() {
     try { localStorage.setItem('frog-theme', theme); } catch (_) {}
     document.documentElement.setAttribute('data-theme', effectiveTheme);
   }, [theme, effectiveTheme]);
+
+  // Persist sync settings to localStorage
+  useEffect(() => {
+    try {
+      if (syncConfig) localStorage.setItem('frog-sync-config', JSON.stringify(syncConfig));
+      else localStorage.removeItem('frog-sync-config');
+      if (syncCode) localStorage.setItem('frog-sync-code', syncCode);
+      else localStorage.removeItem('frog-sync-code');
+      localStorage.setItem('frog-sync-enabled', syncEnabled ? 'true' : 'false');
+    } catch (_) {}
+  }, [syncConfig, syncCode, syncEnabled]);
+
+  // Init Firebase sync when enabled with valid config + code
+  useEffect(() => {
+    if (!syncEnabled || !syncConfig?.apiKey || !syncConfig?.databaseURL || !syncCode?.trim()) {
+      if (syncEnabled && (!syncConfig?.apiKey || !syncConfig?.databaseURL || !syncCode?.trim())) setSyncStatus('not_configured');
+      else setSyncStatus('');
+      syncRef.current = null;
+      return;
+    }
+    const { write, listen, disconnect, deviceId, subscribeConnectStatus } = initSync(syncConfig, syncCode);
+    syncRef.current = { write, deviceId };
+    const unsubData = listen((data) => {
+      if (data.sourceDeviceId === deviceId) return;
+      if (data.updatedAt <= lastAppliedUpdatedAtRef.current) return;
+      lastAppliedUpdatedAtRef.current = data.updatedAt;
+      applyingFromSyncRef.current = true;
+      const normalized = (data.tasks || []).map((t) => ({
+        ...t,
+        totalTimeMs: t.totalTimeMs ?? 0,
+        timerStartedAt: null,
+      }));
+      const statsToApply = data.stats || { today: 0, week: 0, frogStreak: 0 };
+      setTasks(normalized);
+      setStats(statsToApply);
+      storage.set('frog-tasks-kanban', JSON.stringify(normalized));
+      storage.set('frog-stats-kanban', JSON.stringify(statsToApply));
+      applyingFromSyncRef.current = false;
+    });
+    const unsubConn = subscribeConnectStatus((connected) => {
+      setSyncStatus(connected ? 'connected' : 'offline');
+    });
+    return () => {
+      unsubData();
+      unsubConn();
+      disconnect();
+      syncRef.current = null;
+    };
+  }, [syncEnabled, syncConfig, syncCode]);
+
+  // Push local tasks/stats to Firebase when they change (debounced in syncService)
+  useEffect(() => {
+    if (!initialLoadDone.current || applyingFromSyncRef.current) return;
+    if (syncRef.current?.write) syncRef.current.write(tasks, stats);
+  }, [tasks, stats]);
 
   // ─── Task CRUD ────────────────────────────────────────────────────────────────
 
@@ -1000,6 +1071,10 @@ export default function EatThatFrog() {
               handleResetStats={handleResetStats}
               settingsClearBeforeDate={settingsClearBeforeDate} setSettingsClearBeforeDate={setSettingsClearBeforeDate}
               handleClearWithConfirm={handleClearWithConfirm}
+              syncEnabled={syncEnabled} setSyncEnabled={setSyncEnabled}
+              syncConfig={syncConfig} setSyncConfig={setSyncConfig}
+              syncCode={syncCode} setSyncCode={setSyncCode}
+              syncStatus={syncStatus}
             />
           ) : (
             <AnalyticsView

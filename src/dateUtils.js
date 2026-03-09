@@ -7,8 +7,13 @@ export function toDateKey(d) {
   return date.toISOString().slice(0, 10);
 }
 
+/** Returns today's date as YYYY-MM-DD in the client's local timezone (system date). */
 export function getTodayKey() {
-  return toDateKey(new Date());
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 export function getWeekStart(d) {

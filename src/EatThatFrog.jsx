@@ -41,7 +41,7 @@ export default function EatThatFrog() {
   const initialLoadDone = React.useRef(false);
   const [scheduleRange, setScheduleRange] = useState('daily');
   const [focusDate, setFocusDate] = useState(getTodayKey());
-  const [quickAddDate, setQuickAddDate] = useState('');
+  const [quickAddDate, setQuickAddDate] = useState(getTodayKey());
   const [editingDateTaskId, setEditingDateTaskId] = useState(null);
   const [addTaskCell, setAddTaskCell] = useState(null);
   const [addTaskCellText, setAddTaskCellText] = useState('');
@@ -69,7 +69,7 @@ export default function EatThatFrog() {
   );
   const [moveMenuTaskId, setMoveMenuTaskId] = useState(null);
   const [addSheetCell, setAddSheetCell] = useState(null);
-  const [addSheetForm, setAddSheetForm] = useState({ text: '', status: 'todo', priority: 'A', date: '' });
+  const [addSheetForm, setAddSheetForm] = useState({ text: '', status: 'todo', priority: 'A', date: getTodayKey() });
   const [editSheetTaskId, setEditSheetTaskId] = useState(null);
   const [editSheetForm, setEditSheetForm] = useState({ text: '', status: 'todo', priority: 'A', scheduledDate: '', notes: '', recurrence: 'none' });
   const [mobileSelectedTaskId, setMobileSelectedTaskId] = useState(null);
@@ -118,7 +118,7 @@ export default function EatThatFrog() {
   const resizeStartHeightRef = React.useRef(0);
 
   useEffect(() => {
-    if (addSheetCell) setAddSheetForm({ text: '', status: addSheetCell.status, priority: addSheetCell.priority, date: '' });
+    if (addSheetCell) setAddSheetForm({ text: '', status: addSheetCell.status, priority: addSheetCell.priority, date: getTodayKey() });
   }, [addSheetCell]);
 
   useEffect(() => {
@@ -349,10 +349,10 @@ export default function EatThatFrog() {
 
   const quickAdd = () => {
     if (!quickAddText.trim()) return;
-    const date = quickAddDate?.trim() || null;
+    const date = quickAddDate?.trim() || getTodayKey();
     addTask(quickAddText, quickAddPriority || 'A', quickAddColumn || 'todo', date);
     setQuickAddText('');
-    setQuickAddDate('');
+    setQuickAddDate(getTodayKey());
   };
 
   const pushUndo = (tasksSnapshot, statsSnapshot, affectedTask, previousStatus, previousPriority, indexInCell) => {
@@ -962,7 +962,7 @@ export default function EatThatFrog() {
                     <label className="block text-xs text-gray-400 font-semibold mb-1.5">Schedule (optional)</label>
                     <input type="date" value={addSheetForm.date} onChange={(e) => setAddSheetForm((f) => ({ ...f, date: e.target.value }))} className="w-full px-4 py-3 bg-slate-700 text-white rounded-xl border-2 border-slate-600 focus:border-orange-500 focus:outline-none min-h-[48px] touch-manipulation" />
                   </div>
-                  <button type="button" onClick={() => { const text = addSheetForm.text.trim(); if (text) { addTask(text, addSheetForm.priority, addSheetForm.status, addSheetForm.date || null); setAddSheetCell(null); } }} disabled={!addSheetForm.text.trim()} className="w-full min-h-[52px] rounded-xl bg-orange-500 text-white font-semibold hover:bg-orange-600 active:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors touch-manipulation">
+                  <button type="button" onClick={() => { const text = addSheetForm.text.trim(); if (text) { addTask(text, addSheetForm.priority, addSheetForm.status, addSheetForm.date || getTodayKey()); setAddSheetCell(null); } }} disabled={!addSheetForm.text.trim()} className="w-full min-h-[52px] rounded-xl bg-orange-500 text-white font-semibold hover:bg-orange-600 active:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors touch-manipulation">
                     Add task
                   </button>
                 </div>

@@ -5,7 +5,7 @@ import {
   FileText, ListTodo, Repeat, Trash2, Play, Pause,
 } from 'lucide-react';
 import HelpTip from '../components/HelpTip';
-import { formatDay } from '../dateUtils';
+import { formatDay, getTodayKey } from '../dateUtils';
 import {
   getPriorityColor, getPriorityBadgeColor, getPriorityLabel,
   getStatusLabel, getDateStatus, getRowProgress, formatDuration,
@@ -192,7 +192,7 @@ export default function KanbanView({
               placeholder="Quick add task..."
               className="flex-1 min-w-0 px-4 py-3 sm:py-2 bg-slate-700 text-white rounded-xl sm:rounded-lg border-2 border-slate-600 focus:border-orange-500 focus:outline-none text-base sm:text-sm min-h-[48px] sm:min-h-0 touch-manipulation"
             />
-            <HelpTip id="quickadd" activeId={helpTooltipId} onToggle={setHelpTooltipId} text="Type a task name, set priority and status, then press Enter or click + to add. Optional date schedules the task for a specific day." className="shrink-0" />
+            <HelpTip id="quickadd" activeId={helpTooltipId} onToggle={setHelpTooltipId} text="Type a task name, set priority and status, then press Enter or click + to add. Date defaults to today; change it to schedule for another day." className="shrink-0" />
           </div>
           <div className="flex flex-wrap gap-2 sm:gap-3 items-center">
             <select
@@ -213,10 +213,10 @@ export default function KanbanView({
             </select>
             <input
               type="date"
-              value={quickAddDate}
+              value={quickAddDate || getTodayKey()}
               onChange={(e) => setQuickAddDate(e.target.value)}
               className="flex-1 sm:flex-none min-w-0 px-3 py-2.5 sm:py-2 bg-slate-700 text-white rounded-xl sm:rounded-lg border-2 border-slate-600 focus:border-orange-500 focus:outline-none text-sm min-h-[44px] sm:min-h-0 touch-manipulation sm:min-w-[140px]"
-              title="Optional: schedule for a specific day"
+              title="Default: today. Change to schedule for another day."
             />
             <button
               onClick={quickAdd}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Layout, Calendar, BarChart3, Settings, FileText,
-  HelpCircle, Timer, Menu, X, Focus, Flame,
+  HelpCircle, Timer, Menu, X, Focus, Flame, Droplets,
 } from 'lucide-react';
 import { storage } from './storage';
 import { initSync } from './syncService';
@@ -15,6 +15,7 @@ import { getStatusLabel, getPriorityBadgeColor, formatDuration } from './utils/t
 import Confetti from './components/Confetti';
 import HeaderFrog from './components/HeaderFrog';
 import PomodoroTimer from './components/PomodoroTimer';
+import WaterTracker from './components/WaterTracker';
 
 import KanbanView from './views/KanbanView';
 import FocusModeView from './views/FocusModeView';
@@ -76,6 +77,15 @@ export default function EatThatFrog() {
   const [helpTooltipId, setHelpTooltipId] = useState(null);
   const [showPomodoro, setShowPomodoro] = useState(false);
   const [showFocusMode, setShowFocusMode] = useState(false);
+  const [showWaterTracker, setShowWaterTracker] = useState(false);
+  const [waterLogs, setWaterLogs] = useState({});
+  const [waterSettings, setWaterSettings] = useState({
+    dailyGoalGlasses: 8,
+    reminderIntervalMinutes: 60,
+    reminderEnabled: false,
+  });
+  const waterReminderRef = React.useRef(null);
+  const waterLogsRef = React.useRef(waterLogs);
 
   // Sync (Firebase): config and code from localStorage; status from connection
   const [syncConfig, setSyncConfig] = useState(() => {
@@ -131,6 +141,8 @@ export default function EatThatFrog() {
       try {
         const tasksResult = await storage.get('frog-tasks-kanban');
         const statsResult = await storage.get('frog-stats-kanban');
+        const waterLogsResult = await storage.get('frog-water-logs');
+        const waterSettingsResult = await storage.get('frog-water-settings');
         if (tasksResult?.value) {
           const loaded = JSON.parse(tasksResult.value);
           const normalized = Array.isArray(loaded)
@@ -143,6 +155,8 @@ export default function EatThatFrog() {
           setTasks(normalized);
         }
         if (statsResult?.value) setStats(JSON.parse(statsResult.value));
+        if (waterLogsResult?.value) setWaterLogs(JSON.parse(waterLogsResult.value));
+        if (waterSettingsResult?.value) setWaterSettings((prev) => ({ ...prev, ...JSON.parse(waterSettingsResult.value) }));
       } catch {
         console.log('No saved data found, starting fresh');
       } finally {
@@ -161,6 +175,16 @@ export default function EatThatFrog() {
     if (!initialLoadDone.current) return;
     storage.set('frog-stats-kanban', JSON.stringify(stats));
   }, [stats]);
+
+  useEffect(() => {
+    if (!initialLoadDone.current) return;
+    storage.set('frog-water-logs', JSON.stringify(waterLogs));
+  }, [waterLogs]);
+
+  useEffect(() => {
+    if (!initialLoadDone.current) return;
+    storage.set('frog-water-settings', JSON.stringify(waterSettings));
+  }, [waterSettings]);
 
   useEffect(() => {
     try { localStorage.setItem('frog-kanban-rowHeights', JSON.stringify(rowHeights)); }
@@ -261,6 +285,53 @@ export default function EatThatFrog() {
     if (!initialLoadDone.current || applyingFromSyncRef.current) return;
     if (syncRef.current?.write) syncRef.current.write(tasks, stats);
   }, [tasks, stats]);
+
+  // ─── Water reminder notifications ────────────────────────────────────────────
+
+  // Keep the ref in sync so the interval callback always reads current logs
+  // without needing waterLogs in the interval's dependency array.
+  useEffect(() => {
+    waterLogsRef.current = waterLogs;
+  }, [waterLogs]);
+
+  useEffect(() => {
+    clearInterval(waterReminderRef.current);
+    if (!waterSettings.reminderEnabled) return;
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    waterReminderRef.current = setInterval(() => {
+      const todayKey = getTodayKey();
+      const todayEntries = waterLogsRef.current[todayKey] || [];
+      const count = todayEntries.reduce((s, e) => s + e.amount, 0);
+      if (count < waterSettings.dailyGoalGlasses) {
+        new Notification('💧 Time to hydrate!', {
+          body: `You've had ${count}/${waterSettings.dailyGoalGlasses} glasses today. Drink up!`,
+          tag: 'water-reminder',
+        });
+      }
+    }, waterSettings.reminderIntervalMinutes * 60 * 1000);
+    return () => clearInterval(waterReminderRef.current);
+  }, [waterSettings.reminderEnabled, waterSettings.reminderIntervalMinutes, waterSettings.dailyGoalGlasses]);
+
+  const logWater = (amount) => {
+    const todayKey = getTodayKey();
+    setWaterLogs((prev) => ({
+      ...prev,
+      [todayKey]: [...(prev[todayKey] || []), { id: Date.now(), timestamp: new Date().toISOString(), amount }],
+    }));
+  };
+
+  const removeLastWaterLog = () => {
+    const todayKey = getTodayKey();
+    setWaterLogs((prev) => {
+      const entries = prev[todayKey] || [];
+      if (entries.length === 0) return prev;
+      return { ...prev, [todayKey]: entries.slice(0, -1) };
+    });
+  };
+
+  const updateWaterSettings = (newSettings) => {
+    setWaterSettings(newSettings);
+  };
 
   // ─── Task CRUD ────────────────────────────────────────────────────────────────
 
@@ -727,6 +798,14 @@ export default function EatThatFrog() {
                   <Timer className="w-4 h-4" />
                   <span className="hidden lg:inline">Timer</span>
                 </button>
+                <button
+                  onClick={() => setShowWaterTracker((s) => !s)}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg font-semibold transition-all text-sm ${showWaterTracker ? 'bg-blue-500 text-white' : 'bg-slate-700 text-gray-300 hover:bg-slate-600'}`}
+                  title="Water Tracker"
+                >
+                  <Droplets className="w-4 h-4" />
+                  <span className="hidden lg:inline">Water</span>
+                </button>
               </div>
 
               {/* Mobile: hamburger */}
@@ -775,6 +854,9 @@ export default function EatThatFrog() {
               )}
               <button type="button" onClick={() => { setShowPomodoro((s) => !s); setMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-left font-medium transition-colors touch-manipulation min-h-[44px] ${showPomodoro ? 'bg-orange-500 text-white' : 'text-gray-300 hover:bg-slate-700 active:bg-slate-600'}`}>
                 <Timer className="w-5 h-5 flex-shrink-0" />Focus Timer
+              </button>
+              <button type="button" onClick={() => { setShowWaterTracker((s) => !s); setMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-left font-medium transition-colors touch-manipulation min-h-[44px] ${showWaterTracker ? 'bg-blue-500 text-white' : 'text-gray-300 hover:bg-slate-700 active:bg-slate-600'}`}>
+                <Droplets className="w-5 h-5 flex-shrink-0" />Water Tracker
               </button>
             </nav>
           </div>
@@ -1080,6 +1162,7 @@ export default function EatThatFrog() {
             <AnalyticsView
               tasks={tasks} stats={stats}
               priorities={priorities} statuses={statuses}
+              waterLogs={waterLogs} waterSettings={waterSettings}
             />
           )}
         </div>
@@ -1090,6 +1173,18 @@ export default function EatThatFrog() {
         <PomodoroTimer
           onClose={() => setShowPomodoro(false)}
           frogTask={tasks.find((t) => t.isFrog && t.status !== 'done') || null}
+        />
+      )}
+
+      {/* Water Tracker */}
+      {showWaterTracker && (
+        <WaterTracker
+          onClose={() => setShowWaterTracker(false)}
+          waterLogs={waterLogs}
+          waterSettings={waterSettings}
+          onLog={logWater}
+          onRemoveLog={removeLastWaterLog}
+          onUpdateSettings={updateWaterSettings}
         />
       )}
     </>

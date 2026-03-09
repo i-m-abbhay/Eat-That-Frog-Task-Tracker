@@ -1,7 +1,28 @@
-import { CheckCircle2, TrendingUp, Flame, Clock } from 'lucide-react';
+import { CheckCircle2, TrendingUp, Flame, Clock, Droplets } from 'lucide-react';
 import { getPriorityLabel, getStatusLabel, formatDuration } from '../utils/taskUtils';
+import { getTodayKey, addDays } from '../dateUtils';
 
-export default function AnalyticsView({ tasks, stats, priorities, statuses }) {
+function getLastNDays(n) {
+  const today = getTodayKey();
+  const days = [];
+  for (let i = n - 1; i >= 0; i--) {
+    days.push(addDays(today, -i));
+  }
+  return days;
+}
+
+function formatDayLabel(dateKey) {
+  const d = new Date(dateKey + 'T00:00:00');
+  return d.toLocaleDateString([], { weekday: 'short', month: 'numeric', day: 'numeric' });
+}
+
+function formatShortDay(dateKey) {
+  const d = new Date(dateKey + 'T00:00:00');
+  if (dateKey === getTodayKey()) return 'Today';
+  return d.toLocaleDateString([], { weekday: 'short' });
+}
+
+export default function AnalyticsView({ tasks, stats, priorities, statuses, waterLogs = {}, waterSettings = { dailyGoalGlasses: 8, reminderIntervalMinutes: 60, reminderEnabled: false } }) {
   const getTaskTimeMs = (t) => {
     const base = t.totalTimeMs ?? 0;
     if (!t.timerStartedAt) return base;
@@ -18,6 +39,34 @@ export default function AnalyticsView({ tasks, stats, priorities, statuses }) {
     .filter((t) => t._timeMs > 0)
     .sort((a, b) => b._timeMs - a._timeMs)
     .slice(0, 5);
+
+  // ─── Hydration analytics ─────────────────────────────────────────────────────
+  const todayKey = getTodayKey();
+  const last7Days = getLastNDays(7);
+  const goal = waterSettings.dailyGoalGlasses;
+
+  const dailyTotals = last7Days.map((day) => {
+    const entries = waterLogs[day] || [];
+    return { day, count: entries.reduce((s, e) => s + e.amount, 0) };
+  });
+
+  const todayCount = (waterLogs[todayKey] || []).reduce((s, e) => s + e.amount, 0);
+  const todayProgress = Math.min(1, todayCount / goal);
+
+  const streakDays = [...getLastNDays(30)].reverse();
+  let streak = 0;
+  for (const day of streakDays) {
+    const count = (waterLogs[day] || []).reduce((s, e) => s + e.amount, 0);
+    if (count >= goal) streak++;
+    else break;
+  }
+
+  const daysWithData = last7Days.filter((d) => (waterLogs[d] || []).length > 0);
+  const weeklyAvg = daysWithData.length > 0
+    ? (daysWithData.reduce((s, d) => s + (waterLogs[d] || []).reduce((ss, e) => ss + e.amount, 0), 0) / daysWithData.length).toFixed(1)
+    : 0;
+
+  const maxBarCount = Math.max(goal, ...dailyTotals.map((d) => d.count), 1);
 
   return (
     <div className="space-y-6">
@@ -136,6 +185,129 @@ export default function AnalyticsView({ tasks, stats, priorities, statuses }) {
             );
           })}
         </div>
+      </div>
+
+      {/* ─── Hydration Section ─────────────────────────────────────────────────── */}
+      <div className="bg-slate-800 rounded-xl p-6 md:p-8">
+        <h3 className="text-2xl font-bold mb-6 text-white flex items-center gap-2">
+          <Droplets className="w-7 h-7 text-blue-400" />
+          Hydration
+        </h3>
+
+        {/* Summary cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          {/* Today's progress ring */}
+          <div className="col-span-2 md:col-span-1 bg-slate-700/60 rounded-xl p-4 flex flex-col items-center justify-center">
+            <div className="relative" style={{ width: 88, height: 88 }}>
+              <svg width="88" height="88" style={{ transform: 'rotate(-90deg)' }}>
+                <circle cx="44" cy="44" r="36" fill="none" stroke="#334155" strokeWidth="7" />
+                <circle
+                  cx="44" cy="44" r="36"
+                  fill="none"
+                  stroke={todayProgress >= 1 ? '#34d399' : '#38bdf8'}
+                  strokeWidth="7"
+                  strokeLinecap="round"
+                  strokeDasharray={2 * Math.PI * 36}
+                  strokeDashoffset={2 * Math.PI * 36 * (1 - todayProgress)}
+                  style={{ transition: 'stroke-dashoffset 0.5s ease' }}
+                />
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ pointerEvents: 'none' }}>
+                <span className="text-xl">💧</span>
+                <span className="font-bold text-white text-sm leading-tight">
+                  {todayCount}<span className="text-gray-400 text-xs">/{goal}</span>
+                </span>
+              </div>
+            </div>
+            <span className="text-gray-400 text-xs mt-2 text-center">Today</span>
+          </div>
+
+          <div className="bg-slate-700/60 rounded-xl p-4 flex flex-col items-center justify-center text-center">
+            <div className="text-3xl font-bold text-white mb-1">{streak}</div>
+            <div className="text-gray-400 text-xs">Day streak 🔥</div>
+            <div className="text-gray-500 text-xs mt-0.5">(hit daily goal)</div>
+          </div>
+
+          <div className="bg-slate-700/60 rounded-xl p-4 flex flex-col items-center justify-center text-center">
+            <div className="text-3xl font-bold text-white mb-1">{weeklyAvg}</div>
+            <div className="text-gray-400 text-xs">Avg glasses/day</div>
+            <div className="text-gray-500 text-xs mt-0.5">(past 7 days)</div>
+          </div>
+
+          <div className="bg-slate-700/60 rounded-xl p-4 flex flex-col items-center justify-center text-center">
+            <div className="text-3xl font-bold text-white mb-1">{goal}</div>
+            <div className="text-gray-400 text-xs">Daily goal</div>
+            <div className="text-gray-500 text-xs mt-0.5">glasses</div>
+          </div>
+        </div>
+
+        {/* 7-day bar chart */}
+        <h4 className="text-lg font-semibold text-white mb-4">Last 7 days</h4>
+        <div className="flex items-end gap-2 md:gap-3 h-40">
+          {dailyTotals.map(({ day, count }) => {
+            const barPct = (count / maxBarCount) * 100;
+            const goalLinePct = (goal / maxBarCount) * 100;
+            const hitGoal = count >= goal;
+            const isToday = day === todayKey;
+            return (
+              <div key={day} className="flex-1 flex flex-col items-center gap-1 h-full justify-end">
+                <span className="text-xs font-semibold" style={{ color: hitGoal ? '#34d399' : '#60a5fa' }}>
+                  {count > 0 ? count : ''}
+                </span>
+                <div className="relative w-full flex items-end" style={{ height: '120px' }}>
+                  {/* Goal line */}
+                  <div
+                    className="absolute left-0 right-0 border-t border-dashed border-blue-500/40"
+                    style={{ bottom: `${goalLinePct}%` }}
+                  />
+                  {/* Bar */}
+                  <div
+                    className={`w-full rounded-t-md transition-all duration-500 ${
+                      hitGoal ? 'bg-emerald-500' : isToday ? 'bg-blue-400' : 'bg-blue-600/60'
+                    }`}
+                    style={{ height: count > 0 ? `${barPct}%` : '3px', minHeight: '3px' }}
+                    title={`${formatDayLabel(day)}: ${count} glasses`}
+                  />
+                </div>
+                <span className={`text-xs truncate w-full text-center ${isToday ? 'text-blue-300 font-semibold' : 'text-gray-500'}`}>
+                  {formatShortDay(day)}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+        <div className="flex items-center gap-4 mt-3 text-xs text-gray-500">
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block w-3 h-2 rounded-sm bg-emerald-500" /> Goal met
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block w-3 h-2 rounded-sm bg-blue-600/60" /> Below goal
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block w-5 border-t border-dashed border-blue-500/60" /> Daily goal
+          </span>
+        </div>
+
+        {/* All-time total */}
+        {Object.keys(waterLogs).length > 0 && (() => {
+          const allTime = Object.values(waterLogs).flat().reduce((s, e) => s + e.amount, 0);
+          const goalDays = Object.keys(waterLogs).filter((d) => {
+            const cnt = (waterLogs[d] || []).reduce((s, e) => s + e.amount, 0);
+            return cnt >= goal;
+          }).length;
+          return (
+            <div className="mt-4 pt-4 border-t border-slate-700 flex gap-6 text-sm">
+              <div>
+                <span className="text-gray-400">Total logged: </span>
+                <span className="text-white font-semibold">{allTime} glasses</span>
+              </div>
+              <div>
+                <span className="text-gray-400">Goal days: </span>
+                <span className="text-white font-semibold">{goalDays}</span>
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       <div className="bg-gradient-to-r from-orange-600 to-red-600 rounded-xl p-8 text-white">

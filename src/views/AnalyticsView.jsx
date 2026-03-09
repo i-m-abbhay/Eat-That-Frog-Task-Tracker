@@ -1,4 +1,5 @@
-import { CheckCircle2, TrendingUp, Flame, Clock, Droplets } from 'lucide-react';
+import { useState } from 'react';
+import { CheckCircle2, TrendingUp, Flame, Clock, Droplets, Activity, X } from 'lucide-react';
 import { getPriorityLabel, getStatusLabel, formatDuration } from '../utils/taskUtils';
 import { getTodayKey, addDays } from '../dateUtils';
 
@@ -22,6 +23,61 @@ function formatShortDay(dateKey) {
   return d.toLocaleDateString([], { weekday: 'short' });
 }
 
+// ─── Heatmap helpers ──────────────────────────────────────────────────────────
+
+function isoToLocalDateKey(isoStr) {
+  const d = new Date(isoStr);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function buildHeatmapWeeks(numWeeks) {
+  const today = new Date();
+  const todayKey = getTodayKey();
+  const dow = today.getDay(); // 0 = Sunday
+  const gridStart = new Date(today);
+  gridStart.setDate(today.getDate() - dow - (numWeeks - 1) * 7);
+
+  const weeks = [];
+  for (let w = 0; w < numWeeks; w++) {
+    const week = [];
+    for (let d = 0; d < 7; d++) {
+      const date = new Date(gridStart);
+      date.setDate(gridStart.getDate() + w * 7 + d);
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+      week.push(key > todayKey ? null : key);
+    }
+    weeks.push(week);
+  }
+  return weeks;
+}
+
+function getMonthLabel(week, wi) {
+  for (const key of week) {
+    if (key && key.slice(8) === '01') {
+      return new Date(key + 'T12:00:00').toLocaleDateString([], { month: 'short' });
+    }
+  }
+  if (wi === 0) {
+    const first = week.find((k) => k);
+    if (first) return new Date(first + 'T12:00:00').toLocaleDateString([], { month: 'short' });
+  }
+  return '';
+}
+
+const CELL = 13;
+const GAP  = 3;
+const STEP = CELL + GAP;
+const DAY_LABEL_W = 26;
+
+function cellBg(count) {
+  if (!count) return '#334155';
+  if (count === 1) return '#431407';
+  if (count <= 3) return '#9a3412';
+  if (count <= 5) return '#ea580c';
+  if (count <= 8) return '#f97316';
+  return '#fdba74';
+}
+
 export default function AnalyticsView({ tasks, stats, priorities, statuses, waterLogs = {}, waterSettings = { dailyGoalGlasses: 8, reminderIntervalMinutes: 60, reminderEnabled: false } }) {
   const getTaskTimeMs = (t) => {
     const base = t.totalTimeMs ?? 0;
@@ -40,8 +96,43 @@ export default function AnalyticsView({ tasks, stats, priorities, statuses, wate
     .sort((a, b) => b._timeMs - a._timeMs)
     .slice(0, 5);
 
-  // ─── Hydration analytics ─────────────────────────────────────────────────────
+  // ─── Heatmap data ─────────────────────────────────────────────────────────────
   const todayKey = getTodayKey();
+  const heatmapWeeks = buildHeatmapWeeks(26);
+
+  const completionsByDay = {};
+  const frogsByDay = {};
+  const tasksByDay = {};
+  tasks.forEach((t) => {
+    if (t.status === 'done' && t.completedAt) {
+      const key = isoToLocalDateKey(t.completedAt);
+      completionsByDay[key] = (completionsByDay[key] || 0) + 1;
+      if (t.isFrog) frogsByDay[key] = (frogsByDay[key] || 0) + 1;
+      if (!tasksByDay[key]) tasksByDay[key] = [];
+      tasksByDay[key].push(t);
+    }
+  });
+
+  const heatmapAllKeys = heatmapWeeks.flat().filter(Boolean);
+  const activeDays     = heatmapAllKeys.filter((k) => completionsByDay[k]).length;
+  const bestDayCount   = Math.max(0, ...heatmapAllKeys.map((k) => completionsByDay[k] || 0));
+  const periodTotal    = heatmapAllKeys.reduce((s, k) => s + (completionsByDay[k] || 0), 0);
+
+  let currentStreak = 0;
+  let streakCheck = todayKey;
+  while (completionsByDay[streakCheck]) {
+    currentStreak++;
+    streakCheck = addDays(streakCheck, -1);
+  }
+
+  const [selectedDay, setSelectedDay] = useState(null);
+
+  // ─── Summary card values (real-time from task data) ──────────────────────────
+  const completedToday    = completionsByDay[todayKey] || 0;
+  const completedThisWeek = getLastNDays(7).reduce((s, d) => s + (completionsByDay[d] || 0), 0);
+  const frogsEaten        = tasks.filter((t) => t.status === 'done' && t.isFrog).length;
+
+  // ─── Hydration analytics ─────────────────────────────────────────────────────
   const last7Days = getLastNDays(7);
   const goal = waterSettings.dailyGoalGlasses;
 
@@ -75,7 +166,7 @@ export default function AnalyticsView({ tasks, stats, priorities, statuses, wate
           <div className="w-16 h-16 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
             <CheckCircle2 className="w-8 h-8 text-emerald-400" />
           </div>
-          <div className="text-4xl font-bold text-white mb-2">{stats.today}</div>
+          <div className="text-4xl font-bold text-white mb-2">{completedToday}</div>
           <div className="text-gray-400">Completed Today</div>
         </div>
 
@@ -83,18 +174,213 @@ export default function AnalyticsView({ tasks, stats, priorities, statuses, wate
           <div className="w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
             <TrendingUp className="w-8 h-8 text-blue-400" />
           </div>
-          <div className="text-4xl font-bold text-white mb-2">{stats.week}</div>
-          <div className="text-gray-400">This Week</div>
+          <div className="text-4xl font-bold text-white mb-2">{completedThisWeek}</div>
+          <div className="text-gray-400">Last 7 Days</div>
         </div>
 
         <div className="bg-slate-800 rounded-xl p-8 text-center">
           <div className="w-16 h-16 bg-orange-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
             <Flame className="w-8 h-8 text-orange-400" />
           </div>
-          <div className="text-4xl font-bold text-white mb-2">{stats.frogStreak}</div>
+          <div className="text-4xl font-bold text-white mb-2">{frogsEaten}</div>
           <div className="text-gray-400">Frogs Eaten</div>
         </div>
       </div>
+
+      {/* ─── Productivity Heatmap ──────────────────────────────────────────────── */}
+      <div className="bg-slate-800 rounded-xl p-6 md:p-8">
+        <div className="flex flex-wrap items-start justify-between gap-4 mb-5">
+          <div>
+            <h3 className="text-2xl font-bold text-white flex items-center gap-2">
+              <Activity className="w-7 h-7 text-orange-400" />
+              Productivity Heatmap
+            </h3>
+            <p className="text-gray-400 text-sm mt-1">Task completions over the last 6 months</p>
+          </div>
+          <div className="flex flex-wrap gap-4 text-sm">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-white">{periodTotal}</div>
+              <div className="text-gray-500 text-xs">tasks done</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-white">{activeDays}</div>
+              <div className="text-gray-500 text-xs">active days</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-white">{bestDayCount}</div>
+              <div className="text-gray-500 text-xs">best day</div>
+            </div>
+            <div className="text-center">
+              <div className={`text-2xl font-bold ${currentStreak > 0 ? 'text-orange-400' : 'text-white'}`}>
+                {currentStreak}{currentStreak > 0 ? '🔥' : ''}
+              </div>
+              <div className="text-gray-500 text-xs">day streak</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Scrollable grid */}
+        <div className="overflow-x-auto pb-1">
+          <div style={{ minWidth: DAY_LABEL_W + 26 * STEP - GAP + 2 }}>
+
+            {/* Month labels */}
+            <div className="relative" style={{ height: 16, marginLeft: DAY_LABEL_W, marginBottom: 4 }}>
+              {heatmapWeeks.map((week, wi) => {
+                const label = getMonthLabel(week, wi);
+                if (!label) return null;
+                return (
+                  <span
+                    key={wi}
+                    className="absolute text-xs text-gray-500 whitespace-nowrap"
+                    style={{ left: wi * STEP }}
+                  >
+                    {label}
+                  </span>
+                );
+              })}
+            </div>
+
+            {/* Day labels + week columns */}
+            <div style={{ display: 'flex', gap: GAP }}>
+              {/* Day labels (Mon / Wed / Fri) */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: GAP, width: DAY_LABEL_W, flexShrink: 0 }}>
+                {['', 'Mon', '', 'Wed', '', 'Fri', ''].map((label, i) => (
+                  <div
+                    key={i}
+                    style={{ height: CELL, fontSize: 9, lineHeight: `${CELL}px` }}
+                    className="text-gray-600 text-right pr-1"
+                  >
+                    {label}
+                  </div>
+                ))}
+              </div>
+
+              {/* Week columns */}
+              {heatmapWeeks.map((week, wi) => (
+                <div key={wi} style={{ display: 'flex', flexDirection: 'column', gap: GAP }}>
+                  {week.map((dateKey, di) => {
+                    const count  = dateKey ? (completionsByDay[dateKey] || 0) : 0;
+                    const frogs  = dateKey ? (frogsByDay[dateKey]      || 0) : 0;
+                    const isToday = dateKey === todayKey;
+                    return (
+                      <div
+                        key={di}
+                        title={
+                          dateKey
+                            ? `${formatDayLabel(dateKey)}: ${count} task${count !== 1 ? 's' : ''} done${frogs ? ` · ${frogs} frog${frogs > 1 ? 's' : ''} 🐸` : ''}`
+                            : ''
+                        }
+                        onClick={() => count > 0 && setSelectedDay(dateKey)}
+                        style={{
+                          width:  CELL,
+                          height: CELL,
+                          borderRadius: 3,
+                          backgroundColor: dateKey ? cellBg(count) : 'transparent',
+                          outline: isToday ? '2px solid #f97316' : frogs > 0 ? '1.5px solid #fb923c' : 'none',
+                          outlineOffset: isToday ? '-2px' : '-1px',
+                          cursor: count > 0 ? 'pointer' : 'default',
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Legend */}
+        <div className="flex items-center gap-2 mt-4 text-xs text-gray-500">
+          <span>Less</span>
+          {[0, 1, 2, 4, 6, 9].map((count) => (
+            <div
+              key={count}
+              style={{ width: CELL, height: CELL, borderRadius: 3, backgroundColor: cellBg(count) }}
+            />
+          ))}
+          <span>More</span>
+          <span className="ml-4 flex items-center gap-1">
+            <div style={{ width: CELL, height: CELL, borderRadius: 3, backgroundColor: cellBg(1), outline: '1.5px solid #fb923c', outlineOffset: '-1px' }} />
+            Frog completed
+          </span>
+          <span className="flex items-center gap-1">
+            <div style={{ width: CELL, height: CELL, borderRadius: 3, backgroundColor: cellBg(0), outline: '2px solid #f97316', outlineOffset: '-2px' }} />
+            Today
+          </span>
+        </div>
+      </div>
+
+      {/* ─── Day detail popup ──────────────────────────────────────────────────── */}
+      {selectedDay && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+          onClick={() => setSelectedDay(null)}
+        >
+          <div
+            className="bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700">
+              <div>
+                <div className="text-lg font-bold text-white">{formatDayLabel(selectedDay)}</div>
+                <div className="text-sm text-gray-400">
+                  {(tasksByDay[selectedDay] || []).length} task{(tasksByDay[selectedDay] || []).length !== 1 ? 's' : ''} completed
+                  {(frogsByDay[selectedDay] || 0) > 0 && (
+                    <span className="ml-2 text-orange-400">· {frogsByDay[selectedDay]} frog{frogsByDay[selectedDay] > 1 ? 's' : ''} 🐸</span>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedDay(null)}
+                className="text-gray-500 hover:text-white transition-colors p-1 rounded-lg hover:bg-slate-700"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Task list */}
+            <div className="overflow-y-auto flex-1 px-6 py-3 space-y-2">
+              {(tasksByDay[selectedDay] || [])
+                .sort((a, b) => new Date(a.completedAt) - new Date(b.completedAt))
+                .map((t) => {
+                  const timeMs = t.totalTimeMs || 0;
+                  const priorityColors = {
+                    A: 'bg-red-500/20 text-red-400 border-red-500/30',
+                    B: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+                    C: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+                    D: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+                    E: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
+                  };
+                  return (
+                    <div key={t.id} className="flex items-start gap-3 bg-slate-700/50 rounded-xl p-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {t.isFrog && <span className="text-base leading-none">🐸</span>}
+                          <span className="text-white text-sm font-medium truncate">{t.text}</span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                          <span className={`text-xs px-2 py-0.5 rounded-full border ${priorityColors[t.priority] ?? priorityColors.E}`}>
+                            {t.priority} · {getPriorityLabel(t.priority)}
+                          </span>
+                          {timeMs > 0 && (
+                            <span className="text-xs text-gray-500 flex items-center gap-1">
+                              <Clock className="w-3 h-3" />{formatDuration(timeMs)}
+                            </span>
+                          )}
+                          <span className="text-xs text-gray-600">
+                            {new Date(t.completedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="bg-slate-800 rounded-xl p-8">
         <h3 className="text-2xl font-bold mb-6 text-white flex items-center gap-2">

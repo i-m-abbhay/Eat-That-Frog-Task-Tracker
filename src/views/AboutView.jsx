@@ -71,6 +71,7 @@ export default function AboutView() {
             <li><strong className="text-white">Fitness</strong> — Log weight and workouts; charts use the unit saved with each day.</li>
             <li><strong className="text-white">Sync</strong> — In Settings, optional Firebase sync keeps the same data across devices when you use the same sync code.</li>
             <li><strong className="text-white">Backup</strong> — Export JSON for a full offline copy; use merge import to combine with another device&apos;s file if needed.</li>
+            <li><strong className="text-white">Install (PWA)</strong> — After visiting once while online, use your browser&apos;s <em>Install app</em> or <em>Add to Home Screen</em> to open the tracker like a native app and use it offline.</li>
           </ul>
         </section>
         <section className="bg-gradient-to-r from-orange-600/20 to-slate-800 rounded-xl p-6 border border-orange-500/30 text-center">

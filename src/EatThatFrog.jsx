@@ -268,6 +268,7 @@ export default function EatThatFrog() {
     }
     const { write, listen, disconnect, deviceId, subscribeConnectStatus } = initSync(syncConfig, syncCode);
     syncRef.current = { write, deviceId };
+    const defaultWater = { dailyGoalGlasses: 8, reminderIntervalMinutes: 60, reminderEnabled: false };
     const unsubData = listen((data) => {
       if (data.sourceDeviceId === deviceId) return;
       if (data.updatedAt <= lastAppliedUpdatedAtRef.current) return;
@@ -283,6 +284,28 @@ export default function EatThatFrog() {
       setStats(statsToApply);
       storage.set('frog-tasks-kanban', JSON.stringify(normalized));
       storage.set('frog-stats-kanban', JSON.stringify(statsToApply));
+      if (data.waterLogs !== undefined && data.waterLogs !== null && typeof data.waterLogs === 'object') {
+        setWaterLogs(data.waterLogs);
+        storage.set('frog-water-logs', JSON.stringify(data.waterLogs));
+      }
+      if (data.waterSettings !== undefined && data.waterSettings !== null && typeof data.waterSettings === 'object') {
+        setWaterSettings((prev) => {
+          const merged = { ...defaultWater, ...prev, ...data.waterSettings };
+          storage.set('frog-water-settings', JSON.stringify(merged));
+          return merged;
+        });
+      }
+      if (data.fitnessLogs !== undefined && data.fitnessLogs !== null && typeof data.fitnessLogs === 'object') {
+        setFitnessLogs(data.fitnessLogs);
+        storage.set('frog-fitness-logs', JSON.stringify(data.fitnessLogs));
+      }
+      if (data.fitnessSettings !== undefined && data.fitnessSettings !== null && typeof data.fitnessSettings === 'object') {
+        setFitnessSettings((prev) => {
+          const merged = { weightUnit: 'kg', ...prev, ...data.fitnessSettings };
+          storage.set('frog-fitness-settings', JSON.stringify(merged));
+          return merged;
+        });
+      }
       applyingFromSyncRef.current = false;
     });
     const unsubConn = subscribeConnectStatus((connected) => {
@@ -296,11 +319,20 @@ export default function EatThatFrog() {
     };
   }, [syncEnabled, syncConfig, syncCode]);
 
-  // Push local tasks/stats to Firebase when they change (debounced in syncService)
+  // Push local state to Firebase when it changes (debounced in syncService)
   useEffect(() => {
     if (!initialLoadDone.current || applyingFromSyncRef.current) return;
-    if (syncRef.current?.write) syncRef.current.write(tasks, stats);
-  }, [tasks, stats]);
+    if (syncRef.current?.write) {
+      syncRef.current.write({
+        tasks,
+        stats,
+        waterLogs,
+        waterSettings,
+        fitnessLogs,
+        fitnessSettings,
+      });
+    }
+  }, [tasks, stats, waterLogs, waterSettings, fitnessLogs, fitnessSettings]);
 
   // ─── Water reminder notifications ────────────────────────────────────────────
 
@@ -529,8 +561,10 @@ export default function EatThatFrog() {
           sets: Array.isArray(ex.sets) ? ex.sets.map((s) => ({ ...s })) : [],
         })),
       }));
+      const weightFromA = a.weight != null && a.weight !== '';
       out[k] = {
-        weight: a.weight != null && a.weight !== '' ? a.weight : (b.weight ?? null),
+        weight: weightFromA ? a.weight : (b.weight ?? null),
+        weightUnit: weightFromA ? a.weightUnit : (b.weightUnit ?? undefined),
         workouts: [...(a.workouts || []), ...newWorkouts],
       };
     });

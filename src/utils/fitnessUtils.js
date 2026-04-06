@@ -1,25 +1,71 @@
 /**
  * Aggregations for fitness logs: weight series and frequency by exercise / body part.
+ * Weight values are stored in the unit recorded at save time (`weightUnit` on each day);
+ * charts convert to the current display unit.
  */
 
-import { getTodayKey, addDays, getWeekStart, getMonthStart, isInWeek, isInMonth } from '../dateUtils';
+import { getTodayKey, addDays, getWeekStart, getMonthStart, isInWeek, isInMonth } from '../dateUtils.js';
 
-/** @typedef {{ weight?: number|null, workouts?: Array<{ id: string, exercises: Array<{ id: string, name: string, bodyPart?: string, sets?: Array<{ weight?: number, reps?: number }> }> }> }} DayEntry */
+/** 1 lb in kg (international avoirdupois pound) */
+export const LB_IN_KG = 0.45359237;
+
+/**
+ * @param {number|null|undefined} weight
+ * @param {'kg'|'lb'} unit
+ * @returns {number|null}
+ */
+export function weightToKg(weight, unit) {
+  if (weight == null || weight === '' || Number.isNaN(Number(weight))) return null;
+  const w = Number(weight);
+  return unit === 'lb' ? w * LB_IN_KG : w;
+}
+
+/**
+ * @param {number|null} kg
+ * @param {'kg'|'lb'} displayUnit
+ * @returns {number|null}
+ */
+export function kgToDisplay(kg, displayUnit) {
+  if (kg == null || Number.isNaN(kg)) return null;
+  return displayUnit === 'lb' ? kg / LB_IN_KG : kg;
+}
+
+/**
+ * Convert a stored weight to the current display unit using the unit it was logged in.
+ * @param {number|null|undefined} raw
+ * @param {'kg'|'lb'|null|undefined} storedUnit
+ * @param {'kg'|'lb'} displayUnit
+ * @param {'kg'|'lb'} [legacyDefault] when `storedUnit` is missing (old data)
+ */
+export function displayWeight(raw, storedUnit, displayUnit, legacyDefault = 'kg') {
+  const u = storedUnit === 'lb' || storedUnit === 'kg' ? storedUnit : legacyDefault;
+  const kg = weightToKg(raw, u);
+  return kgToDisplay(kg, displayUnit);
+}
+
+/** @typedef {{ weight?: number|null, weightUnit?: 'kg'|'lb'|null, workouts?: Array<{ id: string, exercises: Array<{ id: string, name: string, bodyPart?: string, sets?: Array<{ weight?: number, reps?: number }> }> }> }} DayEntry */
 
 /**
  * Last N calendar days including null weight when not logged.
  * @param {Record<string, DayEntry>} logs
  * @param {number} days
+ * @param {'kg'|'lb'} displayUnit
+ * @param {'kg'|'lb'} legacyDefaultUnit unit assumed for entries without `weightUnit`
  * @returns {{ dateKey: string, weight: number | null }[]}
  */
-export function getWeightSeries(logs, days = 30) {
+export function getWeightSeries(logs, days = 30, displayUnit = 'kg', legacyDefaultUnit = 'kg') {
   const today = getTodayKey();
   const out = [];
-  for (let i = days - 1; i >= 0; i--) {
+  for (let i = days - 1; i >= 0; i -= 1) {
     const dateKey = addDays(today, -i);
     const raw = logs[dateKey]?.weight;
-    const weight = raw != null && raw !== '' && !Number.isNaN(Number(raw)) ? Number(raw) : null;
-    out.push({ dateKey, weight });
+    const stored = logs[dateKey]?.weightUnit;
+    if (raw == null || raw === '' || Number.isNaN(Number(raw))) {
+      out.push({ dateKey, weight: null });
+    } else {
+      const w = displayWeight(Number(raw), stored, displayUnit, legacyDefaultUnit);
+      out.push({ dateKey, weight: w });
+    }
   }
   return out;
 }
@@ -80,6 +126,29 @@ export function getFrequencyPairs(logs, period, groupBy) {
   }
 
   return [...map.values()].sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+}
+
+/**
+ * Distinct exercise names across all logs, most frequent first (for datalist suggestions).
+ * @param {Record<string, DayEntry>} logs
+ * @param {number} [limit]
+ * @returns {string[]}
+ */
+export function getRecentExerciseNames(logs, limit = 40) {
+  /** @type {Map<string, number>} */
+  const counts = new Map();
+  for (const day of Object.values(logs)) {
+    for (const w of day?.workouts || []) {
+      for (const ex of w.exercises || []) {
+        const name = (ex.name || '').trim();
+        if (name) counts.set(name, (counts.get(name) || 0) + 1);
+      }
+    }
+  }
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, limit)
+    .map(([name]) => name);
 }
 
 /**

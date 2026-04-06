@@ -4,7 +4,9 @@ import {
   Pencil, Save, RotateCcw,
 } from 'lucide-react';
 import { getTodayKey } from '../dateUtils';
-import { getWeightSeries, getWeightRange, getFrequencyPairs } from '../utils/fitnessUtils';
+import {
+  getWeightSeries, getWeightRange, getFrequencyPairs, displayWeight, getRecentExerciseNames,
+} from '../utils/fitnessUtils';
 
 const DEFAULT_BODY_PARTS = ['Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core', 'Cardio', 'Other'];
 
@@ -13,13 +15,15 @@ function newId() {
 }
 
 function emptyDay() {
-  return { weight: null, workouts: [] };
+  return { weight: null, weightUnit: undefined, workouts: [] };
 }
 
 function ensureDay(entry) {
   if (!entry || typeof entry !== 'object') return emptyDay();
+  const wu = entry.weightUnit;
   return {
     weight: entry.weight ?? null,
+    weightUnit: wu === 'lb' || wu === 'kg' ? wu : undefined,
     workouts: Array.isArray(entry.workouts) ? entry.workouts : [],
   };
 }
@@ -251,7 +255,15 @@ export default function FitnessView({
 
   const saveDay = () => {
     if (draft == null) return;
-    onUpdateDay(selectedDate, () => JSON.parse(JSON.stringify(ensureDay(draft))));
+    onUpdateDay(selectedDate, () => {
+      const base = JSON.parse(JSON.stringify(ensureDay(draft)));
+      if (base.weight != null && !Number.isNaN(Number(base.weight))) {
+        base.weightUnit = fitnessSettings.weightUnit === 'lb' ? 'lb' : 'kg';
+      } else {
+        base.weightUnit = undefined;
+      }
+      return base;
+    });
     setEditing(false);
     setDraft(null);
   };
@@ -268,7 +280,11 @@ export default function FitnessView({
     }
   }, [showSettings]);
 
-  const weightSeries = React.useMemo(() => getWeightSeries(fitnessLogs, 30), [fitnessLogs]);
+  const exerciseNameSuggestions = React.useMemo(() => getRecentExerciseNames(fitnessLogs, 48), [fitnessLogs]);
+  const weightSeries = React.useMemo(
+    () => getWeightSeries(fitnessLogs, 30, unit, 'kg'),
+    [fitnessLogs, unit]
+  );
   const freqPairs = React.useMemo(
     () => getFrequencyPairs(fitnessLogs, freqPeriod, freqGroup === 'exercise' ? 'exercise' : 'bodyPart'),
     [fitnessLogs, freqPeriod, freqGroup]
@@ -418,8 +434,40 @@ export default function FitnessView({
   const weightVal =
     day.weight != null && !Number.isNaN(Number(day.weight)) ? String(day.weight) : '';
 
+  const isDraftDirty = editing && draft != null
+    && JSON.stringify(ensureDay(draft)) !== JSON.stringify(savedDay);
+
+  const confirmLeaveEdit = () => {
+    if (!isDraftDirty) return true;
+    return window.confirm('Discard unsaved changes for this day?');
+  };
+
+  const trySetPanelTab = (tab) => {
+    if (panelTab === tab) return;
+    if (editing && !confirmLeaveEdit()) return;
+    if (editing) {
+      setEditing(false);
+      setDraft(null);
+    }
+    setPanelTab(tab);
+  };
+
+  const tryOpenSettings = () => {
+    if (editing && !confirmLeaveEdit()) return;
+    if (editing) {
+      setEditing(false);
+      setDraft(null);
+    }
+    setShowSettings((s) => !s);
+  };
+
   return (
     <div className="max-w-4xl mx-auto w-full pb-10 px-3 sm:px-4">
+      <datalist id="frog-exercise-name-suggestions">
+        {exerciseNameSuggestions.map((name) => (
+          <option key={name} value={name} />
+        ))}
+      </datalist>
       <header className="mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div className="flex items-center gap-3 min-w-0">
           <Dumbbell className="w-9 h-9 sm:w-10 sm:h-10 text-orange-400 shrink-0" aria-hidden />
@@ -435,7 +483,7 @@ export default function FitnessView({
         </div>
         <button
           type="button"
-          onClick={() => setShowSettings((s) => !s)}
+          onClick={tryOpenSettings}
           className={`self-start sm:self-center flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
             showSettings ? 'bg-orange-500 text-white' : 'bg-slate-700 text-gray-300 hover:bg-slate-600'
           }`}
@@ -455,6 +503,9 @@ export default function FitnessView({
           <div className="px-4 sm:px-6 py-5 space-y-3">
             <div>
               <label className="block text-xs text-gray-400 font-semibold mb-1.5">Weight unit</label>
+              <p className="text-[11px] text-gray-500 mb-2 leading-snug">
+                Charts and the summary use this unit. Each day stores the unit you saved with, so older entries stay correct when you switch.
+              </p>
               <div className="flex gap-2">
                 {['kg', 'lb'].map((u) => (
                   <button
@@ -485,7 +536,7 @@ export default function FitnessView({
             <div className="flex gap-1 px-4 sm:px-6 pt-4 pb-2 flex-shrink-0 border-b border-slate-700/60">
               <button
                 type="button"
-                onClick={() => setPanelTab('log')}
+                onClick={() => trySetPanelTab('log')}
                 className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-colors ${
                   panelTab === 'log' ? 'bg-orange-500 text-white' : 'bg-slate-700/80 text-gray-400 hover:text-white'
                 }`}
@@ -495,7 +546,7 @@ export default function FitnessView({
               </button>
               <button
                 type="button"
-                onClick={() => setPanelTab('charts')}
+                onClick={() => trySetPanelTab('charts')}
                 className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-colors ${
                   panelTab === 'charts' ? 'bg-orange-500 text-white' : 'bg-slate-700/80 text-gray-400 hover:text-white'
                 }`}
@@ -557,7 +608,12 @@ export default function FitnessView({
                         <p className="text-xs text-gray-500 font-semibold">Weight</p>
                         <p className="text-lg text-white font-semibold tabular-nums">
                           {savedDay.weight != null && !Number.isNaN(Number(savedDay.weight))
-                            ? `${savedDay.weight} ${unit}`
+                            ? `${Number(displayWeight(
+                              Number(savedDay.weight),
+                              savedDay.weightUnit,
+                              unit,
+                              'kg'
+                            )).toFixed(1)} ${unit}`
                             : '—'}
                         </p>
                       </div>
@@ -686,6 +742,7 @@ export default function FitnessView({
                                 <input
                                   type="text"
                                   placeholder="Exercise name"
+                                  list="frog-exercise-name-suggestions"
                                   value={ex.name || ''}
                                   onChange={(e) => patchExercise(w.id, ex.id, { name: e.target.value })}
                                   className="w-full px-2 py-1.5 bg-slate-700 text-white rounded text-xs border border-slate-600 focus:border-orange-500 focus:outline-none"

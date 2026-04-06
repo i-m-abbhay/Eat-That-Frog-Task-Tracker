@@ -9,7 +9,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "predeploy": "npm run build",
-    "deploy": "gh-pages -d dist"
+    "deploy": "gh-pages -d dist",
+    "test": "node --test src/utils/fitnessUtils.test.js"
   },
   "dependencies": {
     "firebase": "^11.0.0",

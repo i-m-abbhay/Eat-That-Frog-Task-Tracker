@@ -1,5 +1,5 @@
 /**
- * Firebase Realtime Database sync: write tasks/stats and listen for remote changes.
+ * Firebase Realtime Database sync: write tasks, stats, water, and fitness; listen for remote changes.
  * Uses a sync code to namespace data; deviceId avoids applying our own writes back.
  */
 
@@ -30,9 +30,19 @@ let writeTimeout = null;
 let lastPayload = null;
 
 /**
+ * @typedef {Object} SyncPayload
+ * @property {any[]} tasks
+ * @property {object} stats
+ * @property {object} [waterLogs]
+ * @property {object} [waterSettings]
+ * @property {object} [fitnessLogs]
+ * @property {object} [fitnessSettings]
+ */
+
+/**
  * @param {Object} firebaseConfig - { apiKey, authDomain?, databaseURL, projectId, storageBucket?, messagingSenderId?, appId }
  * @param {string} syncCode
- * @returns {{ write: (tasks: any[], stats: object) => void, listen: (callback: (data: { tasks: any[], stats: object, sourceDeviceId: string, updatedAt: number }) => void) => () => void, disconnect: () => void }}
+ * @returns {{ write: (payload: SyncPayload) => void, listen: (callback: (data: SyncPayload & { sourceDeviceId: string, updatedAt: number }) => void) => () => void, disconnect: () => void, deviceId: string, subscribeConnectStatus: (cb: (connected: boolean) => void) => () => void }}
  */
 export function initSync(firebaseConfig, syncCode) {
   if (app) {
@@ -57,13 +67,14 @@ export function initSync(firebaseConfig, syncCode) {
       write: () => {},
       listen: () => () => {},
       disconnect: () => {},
+      deviceId: getOrCreateDeviceId(),
+      subscribeConnectStatus: () => () => {},
     };
   }
 
   app = initializeApp(firebaseConfig);
   db = getDatabase(app);
   const code = syncCode.trim().replace(/[.#$[\]]/g, '-');
-  // Use "rooms" path so Firebase rules can allow access only to a specific room (sync code), not list all rooms
   syncCodeRef = ref(db, `rooms/${code}`);
 
   const deviceId = getOrCreateDeviceId();
@@ -71,10 +82,8 @@ export function initSync(firebaseConfig, syncCode) {
   const flushWrite = () => {
     writeTimeout = null;
     if (lastPayload && db && syncCodeRef) {
-      const { tasks, stats } = lastPayload;
       const payload = {
-        tasks,
-        stats,
+        ...lastPayload,
         sourceDeviceId: deviceId,
         updatedAt: Date.now(),
       };
@@ -83,9 +92,10 @@ export function initSync(firebaseConfig, syncCode) {
     }
   };
 
-  const write = (tasks, stats) => {
+  /** @param {SyncPayload} payload */
+  const write = (payload) => {
     if (!db || !syncCodeRef) return;
-    lastPayload = { tasks, stats };
+    lastPayload = { ...payload };
     if (writeTimeout) clearTimeout(writeTimeout);
     writeTimeout = setTimeout(flushWrite, DEBOUNCE_MS);
   };
@@ -94,10 +104,14 @@ export function initSync(firebaseConfig, syncCode) {
     if (!syncCodeRef) return () => {};
     unsubscribe = onValue(syncCodeRef, (snapshot) => {
       const data = snapshot.val();
-      if (!data || !data.tasks || !data.stats) return;
+      if (!data || data.tasks == null || data.stats == null) return;
       callback({
         tasks: Array.isArray(data.tasks) ? data.tasks : [],
         stats: data.stats,
+        waterLogs: data.waterLogs,
+        waterSettings: data.waterSettings,
+        fitnessLogs: data.fitnessLogs,
+        fitnessSettings: data.fitnessSettings,
         sourceDeviceId: data.sourceDeviceId || '',
         updatedAt: data.updatedAt || 0,
       });
@@ -110,7 +124,6 @@ export function initSync(firebaseConfig, syncCode) {
     };
   };
 
-  /** Subscribe to connection status (true = connected, false = offline). Returns unsubscribe. */
   const subscribeConnectStatus = (callback) => {
     if (!db) return () => {};
     const connectedRef = ref(db, '.info/connected');

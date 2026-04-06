@@ -63,6 +63,16 @@ export default function AboutView() {
           <h3 className="text-lg font-bold text-orange-200 mb-3">You Are Unique</h3>
           <p className="leading-relaxed">You have talents and abilities that nobody else has. The goal of this method — and this app — is to help you use your time and focus where they matter most: on your frog first.</p>
         </section>
+        <section className="bg-slate-800 rounded-xl p-6">
+          <h3 className="text-lg font-bold text-orange-200 mb-3">Using this app</h3>
+          <ul className="space-y-2 text-sm leading-relaxed list-none">
+            <li><strong className="text-white">Board</strong> — Kanban by priority (A–E) and status; drag tasks, mark your daily frog, use Pomodoro and Focus mode from the header.</li>
+            <li><strong className="text-white">Schedule &amp; Analytics</strong> — Plan by date and review productivity and water at a glance.</li>
+            <li><strong className="text-white">Fitness</strong> — Log weight and workouts; charts use the unit saved with each day.</li>
+            <li><strong className="text-white">Sync</strong> — In Settings, optional Firebase sync keeps the same data across devices when you use the same sync code.</li>
+            <li><strong className="text-white">Backup</strong> — Export JSON for a full offline copy; use merge import to combine with another device&apos;s file if needed.</li>
+          </ul>
+        </section>
         <section className="bg-gradient-to-r from-orange-600/20 to-slate-800 rounded-xl p-6 border border-orange-500/30 text-center">
           <p className="text-gray-300 text-sm italic">Brian Tracy, <em>Eat That Frog!</em> — 21 Great Ways to Stop Procrastinating and Get More Done in Less Time.</p>
         </section>

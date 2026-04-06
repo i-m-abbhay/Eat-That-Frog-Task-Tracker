@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Layout, Calendar, BarChart3, Settings, FileText,
-  HelpCircle, Timer, Menu, X, Focus, Flame, Droplets,
+  HelpCircle, Timer, Menu, X, Focus, Flame, Droplets, Dumbbell,
 } from 'lucide-react';
 import { storage } from './storage';
 import { initSync } from './syncService';
@@ -16,13 +16,13 @@ import Confetti from './components/Confetti';
 import HeaderFrog from './components/HeaderFrog';
 import PomodoroTimer from './components/PomodoroTimer';
 import WaterTracker from './components/WaterTracker';
-
 import KanbanView from './views/KanbanView';
 import FocusModeView from './views/FocusModeView';
 import ScheduleView from './views/ScheduleView';
 import AboutView from './views/AboutView';
 import SettingsView from './views/SettingsView';
 import AnalyticsView from './views/AnalyticsView';
+import FitnessView from './views/FitnessView';
 
 export default function EatThatFrog() {
   const [tasks, setTasks] = useState([]);
@@ -84,6 +84,8 @@ export default function EatThatFrog() {
     reminderIntervalMinutes: 60,
     reminderEnabled: false,
   });
+  const [fitnessLogs, setFitnessLogs] = useState({});
+  const [fitnessSettings, setFitnessSettings] = useState({ weightUnit: 'kg' });
   const waterReminderRef = React.useRef(null);
   const waterLogsRef = React.useRef(waterLogs);
 
@@ -143,6 +145,8 @@ export default function EatThatFrog() {
         const statsResult = await storage.get('frog-stats-kanban');
         const waterLogsResult = await storage.get('frog-water-logs');
         const waterSettingsResult = await storage.get('frog-water-settings');
+        const fitnessLogsResult = await storage.get('frog-fitness-logs');
+        const fitnessSettingsResult = await storage.get('frog-fitness-settings');
         if (tasksResult?.value) {
           const loaded = JSON.parse(tasksResult.value);
           const normalized = Array.isArray(loaded)
@@ -157,6 +161,8 @@ export default function EatThatFrog() {
         if (statsResult?.value) setStats(JSON.parse(statsResult.value));
         if (waterLogsResult?.value) setWaterLogs(JSON.parse(waterLogsResult.value));
         if (waterSettingsResult?.value) setWaterSettings((prev) => ({ ...prev, ...JSON.parse(waterSettingsResult.value) }));
+        if (fitnessLogsResult?.value) setFitnessLogs(JSON.parse(fitnessLogsResult.value));
+        if (fitnessSettingsResult?.value) setFitnessSettings((prev) => ({ ...prev, ...JSON.parse(fitnessSettingsResult.value) }));
       } catch {
         console.log('No saved data found, starting fresh');
       } finally {
@@ -185,6 +191,16 @@ export default function EatThatFrog() {
     if (!initialLoadDone.current) return;
     storage.set('frog-water-settings', JSON.stringify(waterSettings));
   }, [waterSettings]);
+
+  useEffect(() => {
+    if (!initialLoadDone.current) return;
+    storage.set('frog-fitness-logs', JSON.stringify(fitnessLogs));
+  }, [fitnessLogs]);
+
+  useEffect(() => {
+    if (!initialLoadDone.current) return;
+    storage.set('frog-fitness-settings', JSON.stringify(fitnessSettings));
+  }, [fitnessSettings]);
 
   useEffect(() => {
     try { localStorage.setItem('frog-kanban-rowHeights', JSON.stringify(rowHeights)); }
@@ -333,6 +349,18 @@ export default function EatThatFrog() {
     setWaterSettings(newSettings);
   };
 
+  const updateFitnessDay = (dateKey, updater) => {
+    setFitnessLogs((prev) => {
+      const cur = prev[dateKey] || { weight: null, workouts: [] };
+      const next = typeof updater === 'function' ? updater(cur) : updater;
+      return { ...prev, [dateKey]: next };
+    });
+  };
+
+  const updateFitnessSettings = (next) => {
+    setFitnessSettings(next);
+  };
+
   // ─── Task CRUD ────────────────────────────────────────────────────────────────
 
   const addTask = (text, priority, status = 'todo', scheduledDate = null) => {
@@ -475,8 +503,51 @@ export default function EatThatFrog() {
     window.alert(`Removed ${toRemove} task(s).`);
   };
 
+  const mergeWaterLogsImport = (prev, incoming) => {
+    if (!incoming || typeof incoming !== 'object') return prev;
+    const out = { ...prev };
+    Object.entries(incoming).forEach(([k, arr]) => {
+      if (!Array.isArray(arr)) return;
+      out[k] = [...(out[k] || []), ...arr];
+    });
+    return out;
+  };
+
+  const mergeFitnessLogsImport = (prev, incoming) => {
+    if (!incoming || typeof incoming !== 'object') return prev;
+    const out = { ...prev };
+    const stamp = Date.now();
+    Object.entries(incoming).forEach(([k, day]) => {
+      const a = out[k] || { weight: null, workouts: [] };
+      const b = day && typeof day === 'object' ? day : { weight: null, workouts: [] };
+      const newWorkouts = (b.workouts || []).map((w, wi) => ({
+        ...w,
+        id: `m-${stamp}-${k}-${wi}-${Math.random().toString(36).slice(2, 7)}`,
+        exercises: (w.exercises || []).map((ex, ei) => ({
+          ...ex,
+          id: `m-${stamp}-${k}-${wi}-${ei}`,
+          sets: Array.isArray(ex.sets) ? ex.sets.map((s) => ({ ...s })) : [],
+        })),
+      }));
+      out[k] = {
+        weight: a.weight != null && a.weight !== '' ? a.weight : (b.weight ?? null),
+        workouts: [...(a.workouts || []), ...newWorkouts],
+      };
+    });
+    return out;
+  };
+
   const handleExport = () => {
-    const data = { tasks, stats, exportedAt: new Date().toISOString(), app: 'EatThatFrog' };
+    const data = {
+      tasks,
+      stats,
+      exportedAt: new Date().toISOString(),
+      app: 'EatThatFrog',
+      waterLogs,
+      waterSettings,
+      fitnessLogs,
+      fitnessSettings,
+    };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -495,7 +566,19 @@ export default function EatThatFrog() {
       if (replace) {
         setTasks(importedTasks);
         setStats(importedStats);
-        window.alert(`Imported ${importedTasks.length} task(s). Replaced all data.`);
+        setWaterLogs(data.waterLogs && typeof data.waterLogs === 'object' ? data.waterLogs : {});
+        setWaterSettings(
+          data.waterSettings && typeof data.waterSettings === 'object'
+            ? { dailyGoalGlasses: 8, reminderIntervalMinutes: 60, reminderEnabled: false, ...data.waterSettings }
+            : { dailyGoalGlasses: 8, reminderIntervalMinutes: 60, reminderEnabled: false }
+        );
+        setFitnessLogs(data.fitnessLogs && typeof data.fitnessLogs === 'object' ? data.fitnessLogs : {});
+        setFitnessSettings(
+          data.fitnessSettings && typeof data.fitnessSettings === 'object'
+            ? { weightUnit: 'kg', ...data.fitnessSettings }
+            : { weightUnit: 'kg' }
+        );
+        window.alert(`Imported ${importedTasks.length} task(s). Replaced tasks and merged backup fields (water, fitness) when present.`);
       } else {
         setTasks((prev) => {
           const existingIds = new Set(prev.map((t) => t.id));
@@ -511,7 +594,19 @@ export default function EatThatFrog() {
           week: prev.week + importedStats.week,
           frogStreak: prev.frogStreak + importedStats.frogStreak,
         }));
-        window.alert(`Merged ${importedTasks.length} task(s). Stats added together.`);
+        if (data.waterLogs && typeof data.waterLogs === 'object') {
+          setWaterLogs((prev) => mergeWaterLogsImport(prev, data.waterLogs));
+        }
+        if (data.waterSettings && typeof data.waterSettings === 'object') {
+          setWaterSettings((prev) => ({ ...prev, ...data.waterSettings }));
+        }
+        if (data.fitnessLogs && typeof data.fitnessLogs === 'object') {
+          setFitnessLogs((prev) => mergeFitnessLogsImport(prev, data.fitnessLogs));
+        }
+        if (data.fitnessSettings && typeof data.fitnessSettings === 'object') {
+          setFitnessSettings((prev) => ({ ...prev, ...data.fitnessSettings }));
+        }
+        window.alert(`Merged ${importedTasks.length} task(s). Stats added together. Water/fitness merged when present in file.`);
       }
     } catch {
       window.alert('Invalid file. Use a JSON backup from this app.');
@@ -762,6 +857,7 @@ export default function EatThatFrog() {
                   { id: 'kanban', label: 'Board', Icon: Layout },
                   { id: 'schedule', label: 'Schedule', Icon: Calendar },
                   { id: 'analytics', label: 'Analytics', Icon: BarChart3 },
+                  { id: 'fitness', label: 'Fitness', Icon: Dumbbell },
                   { id: 'about', label: 'About', Icon: FileText },
                   { id: 'settings', label: 'Settings', Icon: Settings },
                 ].map(({ id, label, Icon }) => (
@@ -837,6 +933,7 @@ export default function EatThatFrog() {
                 { id: 'kanban', label: 'Board', icon: Layout },
                 { id: 'schedule', label: 'Schedule', icon: Calendar, onSelect: () => setFocusDate(getTodayKey()) },
                 { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+                { id: 'fitness', label: 'Fitness', icon: Dumbbell },
                 { id: 'about', label: 'About', icon: FileText },
                 { id: 'settings', label: 'Settings', icon: Settings },
               ].map(({ id, label, icon: Icon, onSelect }) => (
@@ -1142,6 +1239,13 @@ export default function EatThatFrog() {
               editingTaskId={editingTaskId} editingText={editingText}
               setEditingText={setEditingText} startEditing={startEditing}
               saveEditing={saveEditing} cancelEditing={cancelEditing}
+            />
+          ) : view === 'fitness' ? (
+            <FitnessView
+              fitnessLogs={fitnessLogs}
+              fitnessSettings={fitnessSettings}
+              onUpdateDay={updateFitnessDay}
+              onUpdateSettings={updateFitnessSettings}
             />
           ) : view === 'about' ? (
             <AboutView />

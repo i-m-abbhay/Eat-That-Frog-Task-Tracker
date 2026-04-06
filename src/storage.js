@@ -7,7 +7,14 @@
 const DB_NAME = 'EatThatFrogDB';
 const STORE_NAME = 'keyval';
 const DB_VERSION = 1;
-const STORAGE_KEYS = ['frog-tasks-kanban', 'frog-stats-kanban', 'frog-water-logs', 'frog-water-settings'];
+const STORAGE_KEYS = [
+  'frog-tasks-kanban',
+  'frog-stats-kanban',
+  'frog-water-logs',
+  'frog-water-settings',
+  'frog-fitness-logs',
+  'frog-fitness-settings',
+];
 
 function openDB() {
   return new Promise((resolve, reject) => {

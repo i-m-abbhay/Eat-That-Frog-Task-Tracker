@@ -69,6 +69,7 @@ export default function AboutView() {
             <li><strong className="text-white">Board</strong> — Kanban by priority (A–E) and status; drag tasks, mark your daily frog, use Pomodoro and Focus mode from the header.</li>
             <li><strong className="text-white">Schedule &amp; Analytics</strong> — Plan by date and review productivity and water at a glance.</li>
             <li><strong className="text-white">Fitness</strong> — Log weight and workouts; charts use the unit saved with each day.</li>
+            <li><strong className="text-white">Habits</strong> — Daily check-ins with current and best streaks; included in backup and sync.</li>
             <li><strong className="text-white">Sync</strong> — In Settings, optional Firebase sync keeps the same data across devices when you use the same sync code.</li>
             <li><strong className="text-white">Backup</strong> — Export JSON for a full offline copy; use merge import to combine with another device&apos;s file if needed.</li>
             <li><strong className="text-white">Install (PWA)</strong> — After visiting once while online, use your browser&apos;s <em>Install app</em> or <em>Add to Home Screen</em> to open the tracker like a native app and use it offline.</li>

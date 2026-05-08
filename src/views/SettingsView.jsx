@@ -37,7 +37,7 @@ export default function SettingsView({
           <Cloud className="w-5 h-5" /> Sync across devices
         </h2>
         <p className="text-gray-400 text-sm mb-4">
-          Use the same sync code on your phone and desktop to keep data in sync (tasks, stats, water, and fitness). One-time Firebase setup required.
+          Use the same sync code on your phone and desktop to keep data in sync (tasks, stats, water, fitness, and daily habits). One-time Firebase setup required.
         </p>
         <div className="flex items-center gap-3 mb-4">
           <button
@@ -143,7 +143,7 @@ export default function SettingsView({
       <div className="bg-slate-800 rounded-xl p-6">
         <h2 className="text-xl font-bold text-white mb-1">Backup &amp; restore</h2>
         <p className="text-gray-400 text-sm mb-4">
-          Export tasks, stats, water, and fitness as JSON. Import to replace or merge with current data (merge adds tasks and combines water/fitness where the file includes them).
+          Export tasks, stats, water, fitness, and habits as JSON. Import to replace or merge with current data (merge adds tasks and combines water, fitness, and habit logs where the file includes them).
         </p>
         <div className="flex flex-wrap gap-3">
           <button

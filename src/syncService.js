@@ -1,5 +1,5 @@
 /**
- * Firebase Realtime Database sync: write tasks, stats, water, and fitness; listen for remote changes.
+ * Firebase Realtime Database sync: write tasks, stats, water, fitness, and habits; listen for remote changes.
  * Uses a sync code to namespace data; deviceId avoids applying our own writes back.
  */
 
@@ -37,6 +37,8 @@ let lastPayload = null;
  * @property {object} [waterSettings]
  * @property {object} [fitnessLogs]
  * @property {object} [fitnessSettings]
+ * @property {any[]} [habits]
+ * @property {object} [habitLogs]
  */
 
 /**
@@ -112,6 +114,8 @@ export function initSync(firebaseConfig, syncCode) {
         waterSettings: data.waterSettings,
         fitnessLogs: data.fitnessLogs,
         fitnessSettings: data.fitnessSettings,
+        habits: data.habits,
+        habitLogs: data.habitLogs,
         sourceDeviceId: data.sourceDeviceId || '',
         updatedAt: data.updatedAt || 0,
       });

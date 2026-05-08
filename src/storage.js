@@ -14,6 +14,8 @@ const STORAGE_KEYS = [
   'frog-water-settings',
   'frog-fitness-logs',
   'frog-fitness-settings',
+  'frog-habits',
+  'frog-habit-logs',
 ];
 
 function openDB() {

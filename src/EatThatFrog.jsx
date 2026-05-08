@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Layout, Calendar, BarChart3, Settings, FileText,
-  HelpCircle, Timer, Menu, X, Focus, Flame, Droplets, Dumbbell,
+  HelpCircle, Timer, Menu, X, Focus, Flame, Droplets, Dumbbell, ListChecks,
 } from 'lucide-react';
 import { storage } from './storage';
 import { initSync } from './syncService';
@@ -23,6 +23,7 @@ import AboutView from './views/AboutView';
 import SettingsView from './views/SettingsView';
 import AnalyticsView from './views/AnalyticsView';
 import FitnessView from './views/FitnessView';
+import HabitsView from './views/HabitsView';
 
 export default function EatThatFrog() {
   const [tasks, setTasks] = useState([]);
@@ -86,6 +87,8 @@ export default function EatThatFrog() {
   });
   const [fitnessLogs, setFitnessLogs] = useState({});
   const [fitnessSettings, setFitnessSettings] = useState({ weightUnit: 'kg' });
+  const [habits, setHabits] = useState([]);
+  const [habitLogs, setHabitLogs] = useState({});
   const waterReminderRef = React.useRef(null);
   const waterLogsRef = React.useRef(waterLogs);
 
@@ -147,6 +150,8 @@ export default function EatThatFrog() {
         const waterSettingsResult = await storage.get('frog-water-settings');
         const fitnessLogsResult = await storage.get('frog-fitness-logs');
         const fitnessSettingsResult = await storage.get('frog-fitness-settings');
+        const habitsResult = await storage.get('frog-habits');
+        const habitLogsResult = await storage.get('frog-habit-logs');
         if (tasksResult?.value) {
           const loaded = JSON.parse(tasksResult.value);
           const normalized = Array.isArray(loaded)
@@ -163,6 +168,14 @@ export default function EatThatFrog() {
         if (waterSettingsResult?.value) setWaterSettings((prev) => ({ ...prev, ...JSON.parse(waterSettingsResult.value) }));
         if (fitnessLogsResult?.value) setFitnessLogs(JSON.parse(fitnessLogsResult.value));
         if (fitnessSettingsResult?.value) setFitnessSettings((prev) => ({ ...prev, ...JSON.parse(fitnessSettingsResult.value) }));
+        if (habitsResult?.value) {
+          const loaded = JSON.parse(habitsResult.value);
+          setHabits(Array.isArray(loaded) ? loaded : []);
+        }
+        if (habitLogsResult?.value) {
+          const raw = JSON.parse(habitLogsResult.value);
+          setHabitLogs(raw && typeof raw === 'object' ? raw : {});
+        }
       } catch {
         console.log('No saved data found, starting fresh');
       } finally {
@@ -201,6 +214,16 @@ export default function EatThatFrog() {
     if (!initialLoadDone.current) return;
     storage.set('frog-fitness-settings', JSON.stringify(fitnessSettings));
   }, [fitnessSettings]);
+
+  useEffect(() => {
+    if (!initialLoadDone.current) return;
+    storage.set('frog-habits', JSON.stringify(habits));
+  }, [habits]);
+
+  useEffect(() => {
+    if (!initialLoadDone.current) return;
+    storage.set('frog-habit-logs', JSON.stringify(habitLogs));
+  }, [habitLogs]);
 
   useEffect(() => {
     try { localStorage.setItem('frog-kanban-rowHeights', JSON.stringify(rowHeights)); }
@@ -306,6 +329,14 @@ export default function EatThatFrog() {
           return merged;
         });
       }
+      if (Array.isArray(data.habits)) {
+        setHabits(data.habits);
+        storage.set('frog-habits', JSON.stringify(data.habits));
+      }
+      if (data.habitLogs !== undefined && data.habitLogs !== null && typeof data.habitLogs === 'object') {
+        setHabitLogs(data.habitLogs);
+        storage.set('frog-habit-logs', JSON.stringify(data.habitLogs));
+      }
       applyingFromSyncRef.current = false;
     });
     const unsubConn = subscribeConnectStatus((connected) => {
@@ -330,9 +361,11 @@ export default function EatThatFrog() {
         waterSettings,
         fitnessLogs,
         fitnessSettings,
+        habits,
+        habitLogs,
       });
     }
-  }, [tasks, stats, waterLogs, waterSettings, fitnessLogs, fitnessSettings]);
+  }, [tasks, stats, waterLogs, waterSettings, fitnessLogs, fitnessSettings, habits, habitLogs]);
 
   // ─── Water reminder notifications ────────────────────────────────────────────
 
@@ -391,6 +424,45 @@ export default function EatThatFrog() {
 
   const updateFitnessSettings = (next) => {
     setFitnessSettings(next);
+  };
+
+  const addHabit = (name) => {
+    const trimmed = (name || '').trim();
+    if (!trimmed) return;
+    const id = `h-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    setHabits((prev) => [...prev, { id, name: trimmed, createdAt: new Date().toISOString() }]);
+  };
+
+  const renameHabit = (habitId, name) => {
+    const trimmed = (name || '').trim();
+    if (!trimmed) return;
+    setHabits((prev) => prev.map((h) => (h.id === habitId ? { ...h, name: trimmed } : h)));
+  };
+
+  const deleteHabit = (habitId) => {
+    setHabits((prev) => prev.filter((h) => h.id !== habitId));
+    setHabitLogs((prev) => {
+      const next = { ...prev };
+      Object.keys(next).forEach((dk) => {
+        const day = { ...next[dk] };
+        delete day[habitId];
+        if (Object.keys(day).length === 0) delete next[dk];
+        else next[dk] = day;
+      });
+      return next;
+    });
+  };
+
+  const toggleHabitDay = (habitId, dateKey) => {
+    setHabitLogs((prev) => {
+      const cur = { ...(prev[dateKey] || {}) };
+      if (cur[habitId]) delete cur[habitId];
+      else cur[habitId] = true;
+      const next = { ...prev };
+      if (Object.keys(cur).length === 0) delete next[dateKey];
+      else next[dateKey] = cur;
+      return next;
+    });
   };
 
   // ─── Task CRUD ────────────────────────────────────────────────────────────────
@@ -571,6 +643,36 @@ export default function EatThatFrog() {
     return out;
   };
 
+  const mergeHabitsImport = (prev, incoming) => {
+    if (!Array.isArray(incoming)) return prev;
+    const byId = new Map(prev.map((h) => [h.id, h]));
+    incoming.forEach((h) => {
+      if (h && h.id && typeof h.name === 'string' && h.name.trim() && !byId.has(h.id)) {
+        byId.set(h.id, {
+          id: h.id,
+          name: h.name.trim(),
+          createdAt: h.createdAt || new Date().toISOString(),
+        });
+      }
+    });
+    return Array.from(byId.values());
+  };
+
+  const mergeHabitLogsImport = (prev, incoming) => {
+    if (!incoming || typeof incoming !== 'object') return prev;
+    const out = { ...prev };
+    Object.entries(incoming).forEach(([dateKey, day]) => {
+      if (!day || typeof day !== 'object') return;
+      const mergedDay = { ...(out[dateKey] || {}) };
+      Object.entries(day).forEach(([hid, v]) => {
+        if (v) mergedDay[hid] = true;
+      });
+      if (Object.keys(mergedDay).length) out[dateKey] = mergedDay;
+      else delete out[dateKey];
+    });
+    return out;
+  };
+
   const handleExport = () => {
     const data = {
       tasks,
@@ -581,6 +683,8 @@ export default function EatThatFrog() {
       waterSettings,
       fitnessLogs,
       fitnessSettings,
+      habits,
+      habitLogs,
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -612,7 +716,9 @@ export default function EatThatFrog() {
             ? { weightUnit: 'kg', ...data.fitnessSettings }
             : { weightUnit: 'kg' }
         );
-        window.alert(`Imported ${importedTasks.length} task(s). Replaced tasks and merged backup fields (water, fitness) when present.`);
+        setHabits(data.habits && Array.isArray(data.habits) ? data.habits : []);
+        setHabitLogs(data.habitLogs && typeof data.habitLogs === 'object' ? data.habitLogs : {});
+        window.alert(`Imported ${importedTasks.length} task(s). Replaced tasks and merged backup fields (water, fitness, habits) when present.`);
       } else {
         setTasks((prev) => {
           const existingIds = new Set(prev.map((t) => t.id));
@@ -640,7 +746,13 @@ export default function EatThatFrog() {
         if (data.fitnessSettings && typeof data.fitnessSettings === 'object') {
           setFitnessSettings((prev) => ({ ...prev, ...data.fitnessSettings }));
         }
-        window.alert(`Merged ${importedTasks.length} task(s). Stats added together. Water/fitness merged when present in file.`);
+        if (data.habits && Array.isArray(data.habits)) {
+          setHabits((prev) => mergeHabitsImport(prev, data.habits));
+        }
+        if (data.habitLogs && typeof data.habitLogs === 'object') {
+          setHabitLogs((prev) => mergeHabitLogsImport(prev, data.habitLogs));
+        }
+        window.alert(`Merged ${importedTasks.length} task(s). Stats added together. Water, fitness, and habits merged when present in file.`);
       }
     } catch {
       window.alert('Invalid file. Use a JSON backup from this app.');
@@ -892,6 +1004,7 @@ export default function EatThatFrog() {
                   { id: 'schedule', label: 'Schedule', Icon: Calendar },
                   { id: 'analytics', label: 'Analytics', Icon: BarChart3 },
                   { id: 'fitness', label: 'Fitness', Icon: Dumbbell },
+                  { id: 'habits', label: 'Habits', Icon: ListChecks },
                   { id: 'about', label: 'About', Icon: FileText },
                   { id: 'settings', label: 'Settings', Icon: Settings },
                 ].map(({ id, label, Icon }) => (
@@ -968,6 +1081,7 @@ export default function EatThatFrog() {
                 { id: 'schedule', label: 'Schedule', icon: Calendar, onSelect: () => setFocusDate(getTodayKey()) },
                 { id: 'analytics', label: 'Analytics', icon: BarChart3 },
                 { id: 'fitness', label: 'Fitness', icon: Dumbbell },
+                { id: 'habits', label: 'Habits', icon: ListChecks },
                 { id: 'about', label: 'About', icon: FileText },
                 { id: 'settings', label: 'Settings', icon: Settings },
               ].map(({ id, label, icon: Icon, onSelect }) => (
@@ -1280,6 +1394,15 @@ export default function EatThatFrog() {
               fitnessSettings={fitnessSettings}
               onUpdateDay={updateFitnessDay}
               onUpdateSettings={updateFitnessSettings}
+            />
+          ) : view === 'habits' ? (
+            <HabitsView
+              habits={habits}
+              habitLogs={habitLogs}
+              onAddHabit={addHabit}
+              onRenameHabit={renameHabit}
+              onDeleteHabit={deleteHabit}
+              onToggleHabitDay={toggleHabitDay}
             />
           ) : view === 'about' ? (
             <AboutView />

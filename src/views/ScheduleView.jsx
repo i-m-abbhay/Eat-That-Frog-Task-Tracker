@@ -11,7 +11,7 @@ export default function ScheduleView({
   searchQuery, setSearchQuery,
   quickAddText, setQuickAddText, quickAddDate, setQuickAddDate,
   quickAddPriority, setQuickAddPriority, quickAddColumn,
-  addTask, setFrog, deleteTask,
+  addTask, setFrog, deleteTask, archiveTask,
   scheduleRange, setScheduleRange,
   focusDate, setFocusDate,
   todayKey, goToToday, isViewingToday, isViewingThisWeek, isViewingThisMonth,
@@ -152,7 +152,7 @@ export default function ScheduleView({
                     key={task.id} task={task}
                     getPriorityBadgeColor={getPriorityBadgeColor}
                     getStatusLabel={getStatusLabel}
-                    setFrog={setFrog} deleteTask={deleteTask}
+                    setFrog={setFrog} deleteTask={deleteTask} archiveTask={archiveTask}
                     editingTaskId={editingTaskId} editingText={editingText}
                     setEditingText={setEditingText} startEditing={startEditing}
                     saveEditing={saveEditing} cancelEditing={cancelEditing}
@@ -172,7 +172,7 @@ export default function ScheduleView({
                     key={task.id} task={task}
                     getPriorityBadgeColor={getPriorityBadgeColor}
                     getStatusLabel={getStatusLabel}
-                    setFrog={setFrog} deleteTask={deleteTask}
+                    setFrog={setFrog} deleteTask={deleteTask} archiveTask={archiveTask}
                     editingTaskId={editingTaskId} editingText={editingText}
                     setEditingText={setEditingText} startEditing={startEditing}
                     saveEditing={saveEditing} cancelEditing={cancelEditing}
@@ -209,7 +209,7 @@ export default function ScheduleView({
                           key={task.id} task={task} compact
                           getPriorityBadgeColor={getPriorityBadgeColor}
                           getStatusLabel={getStatusLabel}
-                          setFrog={setFrog} deleteTask={deleteTask}
+                          setFrog={setFrog} deleteTask={deleteTask} archiveTask={archiveTask}
                           editingTaskId={editingTaskId} editingText={editingText}
                           setEditingText={setEditingText} startEditing={startEditing}
                           saveEditing={saveEditing} cancelEditing={cancelEditing}
@@ -251,7 +251,7 @@ export default function ScheduleView({
                                 key={task.id} task={task} compact
                                 getPriorityBadgeColor={getPriorityBadgeColor}
                                 getStatusLabel={getStatusLabel}
-                                setFrog={setFrog} deleteTask={deleteTask}
+                                setFrog={setFrog} deleteTask={deleteTask} archiveTask={archiveTask}
                                 editingTaskId={editingTaskId} editingText={editingText}
                                 setEditingText={setEditingText} startEditing={startEditing}
                                 saveEditing={saveEditing} cancelEditing={cancelEditing}

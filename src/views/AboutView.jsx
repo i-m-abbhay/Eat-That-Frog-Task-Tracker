@@ -66,7 +66,7 @@ export default function AboutView() {
         <section className="bg-slate-800 rounded-xl p-6">
           <h3 className="text-lg font-bold text-orange-200 mb-3">Using this app</h3>
           <ul className="space-y-2 text-sm leading-relaxed list-none">
-            <li><strong className="text-white">Board</strong> — Kanban by priority (A–E) and status; drag tasks, mark your daily frog, use Pomodoro and Focus mode from the header.</li>
+            <li><strong className="text-white">Board</strong> — Kanban by priority (A–E) and status; drag tasks, archive or bulk-select to tidy the board, mark your daily frog, use Pomodoro and Focus mode from the header.</li>
             <li><strong className="text-white">Schedule &amp; Analytics</strong> — Plan by date and review productivity and water at a glance.</li>
             <li><strong className="text-white">Fitness</strong> — Log weight and workouts; charts use the unit saved with each day.</li>
             <li><strong className="text-white">Habits</strong> — Daily check-ins with current and best streaks; included in backup and sync.</li>

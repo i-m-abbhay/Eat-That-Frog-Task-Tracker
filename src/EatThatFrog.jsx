@@ -10,7 +10,7 @@ import {
   isInWeek, isInMonth, getNextRecurrenceDate,
 } from './dateUtils';
 import { STATUSES, PRIORITIES, DEFAULT_ROW_HEIGHT, MIN_ROW_HEIGHT, MAX_ROW_HEIGHT } from './constants';
-import { getStatusLabel, getPriorityBadgeColor, formatDuration } from './utils/taskUtils';
+import { getStatusLabel, getPriorityBadgeColor, formatDuration, isTaskArchived, getArchivedTasks } from './utils/taskUtils';
 
 import Confetti from './components/Confetti';
 import HeaderFrog from './components/HeaderFrog';
@@ -48,6 +48,7 @@ export default function EatThatFrog() {
   const [addTaskCellText, setAddTaskCellText] = useState('');
   const addTaskCellInputRef = React.useRef(null);
   const [settingsClearBeforeDate, setSettingsClearBeforeDate] = useState('');
+  const [settingsArchiveBeforeDate, setSettingsArchiveBeforeDate] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [theme, setTheme] = useState(() => {
     if (typeof window === 'undefined') return 'dark';
@@ -521,6 +522,67 @@ export default function EatThatFrog() {
     if (mobileSelectedTaskId === id) setMobileSelectedTaskId(null);
   };
 
+  const applyArchiveUpdates = (task) => {
+    const updates = {
+      archived: true,
+      archivedAt: new Date().toISOString(),
+      isFrog: false,
+    };
+    if (task.timerStartedAt) {
+      updates.totalTimeMs = (task.totalTimeMs ?? 0) + (Date.now() - new Date(task.timerStartedAt).getTime());
+      updates.timerStartedAt = null;
+    }
+    return { ...task, ...updates };
+  };
+
+  const archiveTask = (id) => {
+    const task = tasks.find((t) => t.id === id);
+    if (!task || isTaskArchived(task)) return;
+    setTasks((prev) => prev.map((t) => (t.id === id ? applyArchiveUpdates(t) : t)));
+    setConfirmDeleteId(null);
+    if (editingTaskId === id) { setEditingTaskId(null); setEditingText(''); }
+    if (editSheetTaskId === id) setEditSheetTaskId(null);
+    if (mobileSelectedTaskId === id) setMobileSelectedTaskId(null);
+  };
+
+  const unarchiveTask = (id) => {
+    setTasks((prev) => prev.map((t) => (
+      t.id === id ? { ...t, archived: false, archivedAt: undefined } : t
+    )));
+  };
+
+  const bulkArchiveTasks = (ids) => {
+    const idSet = new Set(ids);
+    if (idSet.size === 0) return;
+    setTasks((prev) => prev.map((t) => {
+      if (!idSet.has(t.id) || isTaskArchived(t)) return t;
+      return applyArchiveUpdates(t);
+    }));
+  };
+
+  const archiveAllDoneTasks = () => {
+    const ids = tasks.filter((t) => !isTaskArchived(t) && t.status === 'done').map((t) => t.id);
+    if (ids.length === 0) { window.alert('No completed tasks to archive.'); return; }
+    if (!window.confirm(`Archive ${ids.length} completed task(s)? They will be hidden from the board but kept in your backup.`)) return;
+    bulkArchiveTasks(ids);
+    window.alert(`Archived ${ids.length} task(s).`);
+  };
+
+  const archiveTasksBeforeDate = (cutoffDate) => {
+    const toArchive = tasks.filter((t) => !isTaskArchived(t) && (t.createdAt || '').slice(0, 10) < cutoffDate);
+    if (toArchive.length === 0) return 0;
+    bulkArchiveTasks(toArchive.map((t) => t.id));
+    return toArchive.length;
+  };
+
+  const handleArchiveWithConfirm = (label, cutoffDate) => {
+    const toArchive = tasks.filter((t) => !isTaskArchived(t) && (t.createdAt || '').slice(0, 10) < cutoffDate).length;
+    if (toArchive === 0) { window.alert('No active tasks found before that date.'); return; }
+    if (!window.confirm(`Archive ${toArchive} task(s) created before ${label}? You can restore them from Settings.`)) return;
+    archiveTasksBeforeDate(cutoffDate);
+    window.alert(`Archived ${toArchive} task(s).`);
+  };
+
   const updateTask = (id, updates) => {
     setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...updates } : t)));
   };
@@ -593,14 +655,14 @@ export default function EatThatFrog() {
   };
 
   const clearTasksBeforeDate = (cutoffDate) => {
-    const kept = tasks.filter((t) => (t.createdAt || '').slice(0, 10) >= cutoffDate);
+    const kept = tasks.filter((t) => isTaskArchived(t) || (t.createdAt || '').slice(0, 10) >= cutoffDate);
     const removed = tasks.length - kept.length;
     setTasks(kept);
     return removed;
   };
 
   const handleClearWithConfirm = (label, cutoffDate) => {
-    const toRemove = tasks.filter((t) => (t.createdAt || '').slice(0, 10) < cutoffDate).length;
+    const toRemove = tasks.filter((t) => !isTaskArchived(t) && (t.createdAt || '').slice(0, 10) < cutoffDate).length;
     if (toRemove === 0) { window.alert('No tasks found before that date.'); return; }
     if (!window.confirm(`Remove ${toRemove} task(s) created before ${label}? This cannot be undone.`)) return;
     clearTasksBeforeDate(cutoffDate);
@@ -926,6 +988,7 @@ export default function EatThatFrog() {
 
   const getFilteredTasks = (status, priority) =>
     tasks.filter((t) =>
+      !isTaskArchived(t) &&
       t.status === status &&
       t.priority === priority &&
       (!filterFrog || t.isFrog) &&
@@ -933,10 +996,11 @@ export default function EatThatFrog() {
       taskMatchesSearch(t)
     );
 
-  const todaysFrogs = tasks.filter((t) => t.isFrog && t.status !== 'done');
+  const todaysFrogs = tasks.filter((t) => t.isFrog && t.status !== 'done' && !isTaskArchived(t));
   const todayKey = getTodayKey();
+  const archivedTasks = getArchivedTasks(tasks);
 
-  const tasksWithDate = tasks.filter((t) => t.scheduledDate && taskMatchesSearch(t));
+  const tasksWithDate = tasks.filter((t) => !isTaskArchived(t) && t.scheduledDate && taskMatchesSearch(t));
   const getTasksForDate = (dateKey) => tasksWithDate.filter((t) => t.scheduledDate === dateKey);
   const getOverdueTasks = () => tasksWithDate.filter((t) => t.scheduledDate < todayKey && t.status !== 'done');
   const getTasksForWeek = (weekStartKey) => tasksWithDate.filter((t) => isInWeek(t.scheduledDate, weekStartKey));
@@ -1312,6 +1376,7 @@ export default function EatThatFrog() {
                         setEditSheetTaskId(null);
                         if (editingTaskId === editSheetTaskId) { setEditingTaskId(null); setEditingText(''); }
                       }} className="flex-1 min-h-[52px] rounded-xl bg-orange-500 text-white font-semibold hover:bg-orange-600 active:bg-orange-700 transition-colors touch-manipulation">Save</button>
+                      <button type="button" onClick={() => { archiveTask(editSheetTaskId); setEditSheetTaskId(null); }} className="min-h-[52px] px-4 rounded-xl bg-slate-700 text-gray-200 font-semibold hover:bg-slate-600 active:bg-slate-500 transition-colors touch-manipulation">Archive</button>
                       <button type="button" onClick={() => { deleteTask(editSheetTaskId); setEditSheetTaskId(null); }} className="min-h-[52px] px-4 rounded-xl bg-red-900/50 text-red-200 font-semibold hover:bg-red-800/50 active:bg-red-700/50 transition-colors touch-manipulation">Delete</button>
                     </div>
                   </div>
@@ -1345,7 +1410,7 @@ export default function EatThatFrog() {
               quickAddColumn={quickAddColumn} setQuickAddColumn={setQuickAddColumn}
               quickAddDate={quickAddDate} setQuickAddDate={setQuickAddDate}
               quickAddInputRef={quickAddInputRef} quickAdd={quickAdd}
-              addTask={addTask} deleteTask={deleteTask} updateTask={updateTask}
+              addTask={addTask} deleteTask={deleteTask} archiveTask={archiveTask} bulkArchiveTasks={bulkArchiveTasks} updateTask={updateTask}
               startTimer={startTimer} stopTimer={stopTimer}
               setFrog={setFrog} toggleTaskCollapsed={toggleTaskCollapsed}
               addSubtask={addSubtask} toggleSubtask={toggleSubtask} removeSubtask={removeSubtask}
@@ -1377,7 +1442,7 @@ export default function EatThatFrog() {
               quickAddDate={quickAddDate} setQuickAddDate={setQuickAddDate}
               quickAddPriority={quickAddPriority} setQuickAddPriority={setQuickAddPriority}
               quickAddColumn={quickAddColumn}
-              addTask={addTask} setFrog={setFrog} deleteTask={deleteTask}
+              addTask={addTask} setFrog={setFrog} deleteTask={deleteTask} archiveTask={archiveTask}
               scheduleRange={scheduleRange} setScheduleRange={setScheduleRange}
               focusDate={focusDate} setFocusDate={setFocusDate}
               todayKey={todayKey} goToToday={goToToday}
@@ -1414,6 +1479,14 @@ export default function EatThatFrog() {
               handleResetStats={handleResetStats}
               settingsClearBeforeDate={settingsClearBeforeDate} setSettingsClearBeforeDate={setSettingsClearBeforeDate}
               handleClearWithConfirm={handleClearWithConfirm}
+              archiveAllDoneTasks={archiveAllDoneTasks}
+              handleArchiveWithConfirm={handleArchiveWithConfirm}
+              settingsArchiveBeforeDate={settingsArchiveBeforeDate} setSettingsArchiveBeforeDate={setSettingsArchiveBeforeDate}
+              archivedTasks={archivedTasks}
+              unarchiveTask={unarchiveTask}
+              deleteTask={deleteTask}
+              getStatusLabel={getStatusLabel}
+              getPriorityBadgeColor={getPriorityBadgeColor}
               syncEnabled={syncEnabled} setSyncEnabled={setSyncEnabled}
               syncConfig={syncConfig} setSyncConfig={setSyncConfig}
               syncCode={syncCode} setSyncCode={setSyncCode}
@@ -1433,7 +1506,7 @@ export default function EatThatFrog() {
       {showPomodoro && (
         <PomodoroTimer
           onClose={() => setShowPomodoro(false)}
-          frogTask={tasks.find((t) => t.isFrog && t.status !== 'done') || null}
+          frogTask={tasks.find((t) => t.isFrog && t.status !== 'done' && !isTaskArchived(t)) || null}
         />
       )}
 

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { CheckCircle2, TrendingUp, Flame, Clock, Droplets, Activity, X } from 'lucide-react';
-import { getPriorityLabel, getStatusLabel, formatDuration } from '../utils/taskUtils';
+import { getPriorityLabel, getStatusLabel, formatDuration, isTaskArchived } from '../utils/taskUtils';
 import { getTodayKey, addDays } from '../dateUtils';
 
 function getLastNDays(n) {
@@ -432,8 +432,8 @@ export default function AnalyticsView({ tasks, stats, priorities, statuses, wate
       <div className="bg-slate-800 rounded-xl p-8">
         <h3 className="text-2xl font-bold mb-6 text-white">Task Distribution by Priority</h3>
         {priorities.map((priority) => {
-          const count = tasks.filter((t) => t.priority === priority && t.status !== 'done').length;
-          const total = tasks.filter((t) => t.status !== 'done').length;
+          const count = tasks.filter((t) => !isTaskArchived(t) && t.priority === priority && t.status !== 'done').length;
+          const total = tasks.filter((t) => !isTaskArchived(t) && t.status !== 'done').length;
           const percentage = total > 0 ? (count / total) * 100 : 0;
           return (
             <div key={priority} className="mb-4">
@@ -462,7 +462,7 @@ export default function AnalyticsView({ tasks, stats, priorities, statuses, wate
         <h3 className="text-2xl font-bold mb-6 text-white">Task Distribution by Status</h3>
         <div className="grid grid-cols-3 gap-4">
           {statuses.map((status) => {
-            const count = tasks.filter((t) => t.status === status).length;
+            const count = tasks.filter((t) => !isTaskArchived(t) && t.status === status).length;
             return (
               <div key={status} className="bg-slate-700 rounded-lg p-6 text-center">
                 <div className="text-3xl font-bold text-white mb-2">{count}</div>

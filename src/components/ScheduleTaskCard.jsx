@@ -1,4 +1,4 @@
-import { Flame, Trash2, Clock } from 'lucide-react';
+import { Flame, Trash2, Clock, Archive } from 'lucide-react';
 import { formatDuration } from '../utils/taskUtils';
 
 export default function ScheduleTaskCard({
@@ -7,6 +7,7 @@ export default function ScheduleTaskCard({
   getStatusLabel,
   setFrog,
   deleteTask,
+  archiveTask,
   editingTaskId,
   editingText,
   setEditingText,
@@ -63,6 +64,13 @@ export default function ScheduleTaskCard({
             title="Mark as frog"
           >
             <Flame className="w-4 h-4 sm:w-3 sm:h-3" />
+          </button>
+          <button
+            onClick={() => archiveTask(task.id)}
+            className="min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 p-2 sm:p-1 rounded-lg sm:rounded bg-gray-100 text-gray-400 hover:bg-amber-100 hover:text-amber-700 active:bg-amber-200 transition-all touch-manipulation flex items-center justify-center"
+            title="Archive"
+          >
+            <Archive className="w-4 h-4 sm:w-3 sm:h-3" />
           </button>
           <button
             onClick={() => deleteTask(task.id)}

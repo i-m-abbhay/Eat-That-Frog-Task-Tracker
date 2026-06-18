@@ -40,6 +40,18 @@ export function getStatusLabel(status) {
   return labels[status];
 }
 
+export function isTaskArchived(task) {
+  return task?.archived === true;
+}
+
+export function getActiveTasks(tasks) {
+  return tasks.filter((t) => !isTaskArchived(t));
+}
+
+export function getArchivedTasks(tasks) {
+  return tasks.filter((t) => isTaskArchived(t));
+}
+
 export function getDateStatus(task) {
   if (!task.scheduledDate || task.status === 'done') return null;
   const now = new Date();

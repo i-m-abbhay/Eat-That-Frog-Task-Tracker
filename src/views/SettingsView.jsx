@@ -1,4 +1,4 @@
-import { Sun, Moon, Monitor, Download, Upload, Layout, RotateCcw, Cloud, Copy, RefreshCw, ExternalLink } from 'lucide-react';
+import { Sun, Moon, Monitor, Download, Upload, Layout, RotateCcw, Cloud, Copy, RefreshCw, ExternalLink, Archive, Undo2 } from 'lucide-react';
 import { getCutoffForPreset, formatCutoffLabel } from '../dateUtils';
 import { DEFAULT_ROW_HEIGHT } from '../constants';
 
@@ -11,6 +11,14 @@ export default function SettingsView({
   handleResetStats,
   settingsClearBeforeDate, setSettingsClearBeforeDate,
   handleClearWithConfirm,
+  archiveAllDoneTasks,
+  handleArchiveWithConfirm,
+  settingsArchiveBeforeDate, setSettingsArchiveBeforeDate,
+  archivedTasks,
+  unarchiveTask,
+  deleteTask,
+  getStatusLabel,
+  getPriorityBadgeColor,
   syncEnabled, setSyncEnabled,
   syncConfig, setSyncConfig,
   syncCode, setSyncCode,
@@ -211,6 +219,112 @@ export default function SettingsView({
         >
           <RotateCcw className="w-4 h-4" /> Reset stats
         </button>
+      </div>
+
+      {/* Archive tasks */}
+      <div className="bg-slate-800 rounded-xl p-6">
+        <h2 className="text-xl font-bold text-white mb-1 flex items-center gap-2">
+          <Archive className="w-5 h-5" /> Archive tasks
+        </h2>
+        <p className="text-gray-400 text-sm mb-4">
+          Archived tasks are hidden from the board and schedule but kept in backups. Restore them here or delete permanently.
+        </p>
+        <div className="flex flex-wrap gap-3 mb-6">
+          <button
+            type="button"
+            onClick={archiveAllDoneTasks}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-700/80 text-amber-100 hover:bg-amber-600 font-medium text-sm transition-colors"
+          >
+            <Archive className="w-4 h-4" /> Archive all done tasks
+          </button>
+        </div>
+        <div className="space-y-4 pt-4 border-t border-slate-600">
+          <p className="text-gray-300 text-sm font-medium">Bulk archive by date</p>
+          <div className="flex flex-wrap gap-3 mb-2">
+            {['lastMonth', 'last6Months', 'lastYear'].map((preset) => (
+              <button
+                key={preset}
+                type="button"
+                onClick={() => handleArchiveWithConfirm(formatCutoffLabel(preset), getCutoffForPreset(preset))}
+                className="px-4 py-2 rounded-lg bg-slate-700 text-gray-200 hover:bg-slate-600 font-medium text-sm transition-colors"
+              >
+                {preset === 'lastMonth' && `Before ${formatCutoffLabel(preset)}`}
+                {preset === 'last6Months' && `Before ${formatCutoffLabel(preset)}`}
+                {preset === 'lastYear' && `Before ${formatCutoffLabel(preset)}`}
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="date"
+              value={settingsArchiveBeforeDate}
+              onChange={(e) => setSettingsArchiveBeforeDate(e.target.value)}
+              className="px-3 py-2 bg-slate-700 text-white rounded-lg border border-slate-600 focus:border-orange-500 focus:outline-none"
+            />
+            <button
+              type="button"
+              disabled={!settingsArchiveBeforeDate}
+              onClick={() => {
+                if (settingsArchiveBeforeDate) {
+                  const label = new Date(settingsArchiveBeforeDate + 'T12:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+                  handleArchiveWithConfirm(label, settingsArchiveBeforeDate);
+                  setSettingsArchiveBeforeDate('');
+                }
+              }}
+              className="px-4 py-2 rounded-lg bg-amber-700/80 text-amber-100 hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm transition-colors"
+            >
+              Archive before this date
+            </button>
+          </div>
+          <p className="text-gray-500 text-xs">Active tasks created before the cutoff are archived (not deleted).</p>
+        </div>
+        <div className="pt-6 mt-6 border-t border-slate-600">
+          <p className="text-gray-300 text-sm font-medium mb-3">
+            Archived tasks ({archivedTasks.length})
+          </p>
+          {archivedTasks.length === 0 ? (
+            <p className="text-gray-500 text-sm">No archived tasks.</p>
+          ) : (
+            <ul className="space-y-2 max-h-64 overflow-y-auto pr-1">
+              {[...archivedTasks]
+                .sort((a, b) => (b.archivedAt || '').localeCompare(a.archivedAt || ''))
+                .map((task) => (
+                  <li key={task.id} className="flex flex-wrap items-center gap-2 justify-between bg-slate-900/50 rounded-lg px-3 py-2.5">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-white text-sm font-medium truncate">{task.text}</p>
+                      <p className="text-gray-500 text-xs mt-0.5">
+                        <span className={`inline-block rounded px-1.5 py-0.5 font-bold mr-1.5 ${getPriorityBadgeColor(task.priority)}`}>{task.priority}</span>
+                        {getStatusLabel(task.status)}
+                        {task.archivedAt && (
+                          <span className="ml-1.5">
+                            · archived {new Date(task.archivedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => unarchiveTask(task.id)}
+                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-700 text-gray-200 hover:bg-slate-600 text-xs font-medium"
+                      >
+                        <Undo2 className="w-3.5 h-3.5" /> Restore
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (window.confirm(`Permanently delete “${task.text}”?`)) deleteTask(task.id);
+                        }}
+                        className="px-2.5 py-1.5 rounded-lg bg-red-900/50 text-red-200 hover:bg-red-800/50 text-xs font-medium"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </li>
+                ))}
+            </ul>
+          )}
+        </div>
       </div>
 
       {/* Clear old data */}

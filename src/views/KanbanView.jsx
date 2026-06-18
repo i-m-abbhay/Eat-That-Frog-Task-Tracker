@@ -3,12 +3,13 @@ import {
   Flame, Filter, Search, GripVertical, Plus, Calendar,
   ChevronRight, ChevronDown, Undo2, ArrowRightLeft, Pencil,
   FileText, ListTodo, Repeat, Trash2, Play, Pause, Maximize2, Minimize2,
+  Archive, CheckSquare, Square,
 } from 'lucide-react';
 import HelpTip from '../components/HelpTip';
 import { formatDay, getTodayKey } from '../dateUtils';
 import {
   getPriorityColor, getPriorityBadgeColor, getPriorityLabel,
-  getStatusLabel, getDateStatus, getRowProgress, formatDuration,
+  getStatusLabel, getDateStatus, getRowProgress, formatDuration, isTaskArchived,
 } from '../utils/taskUtils';
 
 export default function KanbanView({
@@ -18,7 +19,7 @@ export default function KanbanView({
   quickAddText, setQuickAddText, quickAddPriority, setQuickAddPriority,
   quickAddColumn, setQuickAddColumn, quickAddDate, setQuickAddDate,
   quickAddInputRef, quickAdd,
-  addTask, deleteTask, updateTask, startTimer, stopTimer, setFrog, toggleTaskCollapsed,
+  addTask, deleteTask, archiveTask, bulkArchiveTasks, updateTask, startTimer, stopTimer, setFrog, toggleTaskCollapsed,
   addSubtask, toggleSubtask, removeSubtask,
   editingTaskId, editingText, setEditingText, setEditingTaskId,
   startEditing, saveEditing, editingDateTaskId, setEditingDateTaskId,
@@ -61,6 +62,62 @@ export default function KanbanView({
   };
 
   const [maximizedCell, setMaximizedCell] = useState(null);
+  const [bulkSelectMode, setBulkSelectMode] = useState(false);
+  const [selectedTaskIds, setSelectedTaskIds] = useState(() => new Set());
+
+  const exitBulkSelect = () => {
+    setBulkSelectMode(false);
+    setSelectedTaskIds(new Set());
+  };
+
+  const toggleTaskSelected = (taskId) => {
+    setSelectedTaskIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(taskId)) next.delete(taskId);
+      else next.add(taskId);
+      return next;
+    });
+  };
+
+  const getAllVisibleTaskIds = () => {
+    const ids = [];
+    statuses.forEach((status) => {
+      priorities.forEach((priority) => {
+        getFilteredTasks(status, priority).forEach((t) => ids.push(t.id));
+      });
+    });
+    return ids;
+  };
+
+  const handleBulkArchive = () => {
+    if (selectedTaskIds.size === 0) return;
+    const count = selectedTaskIds.size;
+    if (!window.confirm(`Archive ${count} selected task(s)?`)) return;
+    bulkArchiveTasks([...selectedTaskIds]);
+    exitBulkSelect();
+  };
+
+  const ArchiveBtn = ({ taskId, className = 'p-1' }) => (
+    <button
+      type="button"
+      onClick={() => archiveTask(taskId)}
+      className={`${className} rounded bg-gray-100 text-gray-400 hover:bg-amber-100 hover:text-amber-700 touch-manipulation transition-all`}
+      title="Archive"
+    >
+      <Archive className="w-3 h-3" />
+    </button>
+  );
+
+  const ArchiveBtnMobile = ({ taskId }) => (
+    <button
+      type="button"
+      onClick={() => archiveTask(taskId)}
+      className="min-w-[40px] min-h-[40px] p-2 rounded-lg flex items-center justify-center touch-manipulation bg-gray-100 text-gray-400 hover:bg-amber-100 hover:text-amber-700 active:bg-amber-200"
+      title="Archive"
+    >
+      <Archive className="w-4 h-4" />
+    </button>
+  );
 
   useEffect(() => {
     if (!maximizedCell) return;
@@ -201,13 +258,25 @@ export default function KanbanView({
                                 )}
                                 <div
                                   data-task-id={task.id}
-                                  draggable={!isMobileView}
-                                  onDragStart={isMobileView ? undefined : (e) => handleDragStart(e, task)}
-                                  onDragEnd={!isMobileView ? handleDragEnd : undefined}
+                                  draggable={!isMobileView && !bulkSelectMode}
+                                  onDragStart={isMobileView || bulkSelectMode ? undefined : (e) => handleDragStart(e, task)}
+                                  onDragEnd={!isMobileView && !bulkSelectMode ? handleDragEnd : undefined}
                                   className={`task-card bg-white rounded-lg shadow-md ${
                                     draggedTask?.id === task.id && (!dragOverCell || dragOverCell.status !== task.status || dragOverCell.priority !== task.priority) ? 'dragging' : ''
-                                  } ${task.isFrog ? 'ring-2 ring-orange-500' : ''} ${task.collapsed ? 'p-2 cursor-pointer' : `p-3 ${isMobileView ? 'cursor-default' : 'cursor-move'}`}`}
+                                  } ${task.isFrog ? 'ring-2 ring-orange-500' : ''} ${selectedTaskIds.has(task.id) ? 'ring-2 ring-amber-400' : ''} ${task.collapsed ? 'p-2 cursor-pointer' : `p-3 ${isMobileView || bulkSelectMode ? 'cursor-default' : 'cursor-move'}`}`}
                                 >
+                                  {bulkSelectMode && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => { e.stopPropagation(); toggleTaskSelected(task.id); }}
+                                      className="mb-2 flex items-center gap-2 text-xs font-medium text-amber-700 hover:text-amber-800 touch-manipulation"
+                                    >
+                                      {selectedTaskIds.has(task.id)
+                                        ? <CheckSquare className="w-4 h-4" />
+                                        : <Square className="w-4 h-4" />}
+                                      <span>{selectedTaskIds.has(task.id) ? 'Selected' : 'Select'}</span>
+                                    </button>
+                                  )}
                                   {confirmDeleteId === task.id ? (
                                     <div className="flex items-center justify-between gap-2 py-1" onClick={(e) => e.stopPropagation()}>
                                       <span className="text-sm text-gray-700">Delete this task?</span>
@@ -252,6 +321,7 @@ export default function KanbanView({
                                         {!isMobileView && (
                                           <div className="flex gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                                             <button onClick={() => setFrog(task.id)} className={`p-1 rounded flex items-center justify-center touch-manipulation ${task.isFrog ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-400 hover:bg-orange-100 hover:text-orange-500'}`} title="Mark as frog"><Flame className="w-3 h-3" /></button>
+                                            <ArchiveBtn taskId={task.id} />
                                             <button onClick={() => setConfirmDeleteId(task.id)} className="p-1 rounded bg-gray-100 text-gray-400 hover:bg-red-100 hover:text-red-600 touch-manipulation" title="Delete"><Trash2 className="w-3 h-3" /></button>
                                           </div>
                                         )}
@@ -261,6 +331,7 @@ export default function KanbanView({
                                           <button onClick={() => setEditSheetTaskId(task.id)} className="min-w-[40px] min-h-[40px] p-2 rounded-lg flex items-center justify-center touch-manipulation bg-gray-100 text-gray-500 hover:bg-slate-200 active:bg-slate-300" title="Edit task"><Pencil className="w-4 h-4" /></button>
                                           <button onClick={() => setMoveMenuTaskId(task.id)} className="min-w-[40px] min-h-[40px] p-2 rounded-lg flex items-center justify-center touch-manipulation bg-gray-100 text-gray-500 hover:bg-slate-200 active:bg-slate-300" title="Move to another column"><ArrowRightLeft className="w-4 h-4" /></button>
                                           <button onClick={() => setFrog(task.id)} className={`min-w-[40px] min-h-[40px] p-2 rounded-lg flex items-center justify-center touch-manipulation ${task.isFrog ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-400 hover:bg-orange-100 hover:text-orange-500 active:bg-orange-200'}`} title="Mark as frog"><Flame className="w-4 h-4" /></button>
+                                          <ArchiveBtnMobile taskId={task.id} />
                                           <button onClick={() => setConfirmDeleteId(task.id)} className="min-w-[40px] min-h-[40px] p-2 rounded-lg flex items-center justify-center touch-manipulation bg-gray-100 text-gray-400 hover:bg-red-100 hover:text-red-600 active:bg-red-200" title="Delete"><Trash2 className="w-4 h-4" /></button>
                                         </div>
                                       )}
@@ -303,6 +374,7 @@ export default function KanbanView({
                                         {!isMobileView && (
                                           <div className="flex gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                                             <button onClick={() => setFrog(task.id)} className={`p-1 rounded flex items-center justify-center transition-all ${task.isFrog ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-400 hover:bg-orange-100 hover:text-orange-500'}`} title="Mark as frog"><Flame className="w-3 h-3" /></button>
+                                            <ArchiveBtn taskId={task.id} />
                                             <button onClick={() => setConfirmDeleteId(task.id)} className="p-1 rounded bg-gray-100 text-gray-400 hover:bg-red-100 hover:text-red-600 transition-all" title="Delete"><Trash2 className="w-3 h-3" /></button>
                                           </div>
                                         )}
@@ -315,6 +387,7 @@ export default function KanbanView({
                                           <button onClick={(e) => { e.stopPropagation(); setEditSheetTaskId(task.id); }} className="min-w-[40px] min-h-[40px] p-2 rounded-lg flex items-center justify-center touch-manipulation bg-gray-100 text-gray-500 hover:bg-slate-200 active:bg-slate-300" title="Edit task"><Pencil className="w-4 h-4" /></button>
                                           <button onClick={(e) => { e.stopPropagation(); setMoveMenuTaskId(task.id); }} className="min-w-[40px] min-h-[40px] p-2 rounded-lg flex items-center justify-center touch-manipulation bg-gray-100 text-gray-500 hover:bg-slate-200 active:bg-slate-300" title="Move to another column"><ArrowRightLeft className="w-4 h-4" /></button>
                                           <button onClick={() => setFrog(task.id)} className={`min-w-[40px] min-h-[40px] p-2 rounded-lg flex items-center justify-center touch-manipulation ${task.isFrog ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-400 hover:bg-orange-100 hover:text-orange-500 active:bg-orange-200'}`} title="Mark as frog"><Flame className="w-4 h-4" /></button>
+                                          <ArchiveBtnMobile taskId={task.id} />
                                           <button onClick={() => setConfirmDeleteId(task.id)} className="min-w-[40px] min-h-[40px] p-2 rounded-lg flex items-center justify-center touch-manipulation bg-gray-100 text-gray-400 hover:bg-red-100 hover:text-red-600 active:bg-red-200" title="Delete"><Trash2 className="w-4 h-4" /></button>
                                         </div>
                                       )}
@@ -515,6 +588,44 @@ export default function KanbanView({
             >
               ×
             </button>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center gap-2 order-3 w-full sm:w-auto">
+          {!bulkSelectMode ? (
+            <button
+              type="button"
+              onClick={() => setBulkSelectMode(true)}
+              className="min-h-[44px] sm:min-h-0 px-3 py-2.5 sm:py-1 rounded-xl sm:rounded-lg text-sm font-semibold transition-all touch-manipulation bg-slate-700 text-gray-300 hover:bg-slate-600 active:bg-slate-500"
+            >
+              <CheckSquare className="w-4 h-4 inline mr-1.5" />
+              Select
+            </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => setSelectedTaskIds(new Set(getAllVisibleTaskIds()))}
+                className="min-h-[44px] sm:min-h-0 px-3 py-2.5 sm:py-1 rounded-xl sm:rounded-lg text-sm font-semibold transition-all touch-manipulation bg-slate-700 text-gray-300 hover:bg-slate-600"
+              >
+                Select all visible
+              </button>
+              <button
+                type="button"
+                onClick={handleBulkArchive}
+                disabled={selectedTaskIds.size === 0}
+                className="min-h-[44px] sm:min-h-0 px-3 py-2.5 sm:py-1 rounded-xl sm:rounded-lg text-sm font-semibold transition-all touch-manipulation bg-amber-600 text-white hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Archive className="w-4 h-4 inline mr-1.5" />
+                Archive ({selectedTaskIds.size})
+              </button>
+              <button
+                type="button"
+                onClick={exitBulkSelect}
+                className="min-h-[44px] sm:min-h-0 px-3 py-2.5 sm:py-1 rounded-xl sm:rounded-lg text-sm font-semibold transition-all touch-manipulation bg-slate-700 text-gray-300 hover:bg-slate-600"
+              >
+                Cancel
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -751,7 +862,7 @@ export default function KanbanView({
           No tasks match &quot;{searchQuery}&quot;. Clear search or try different keywords.
         </div>
       )}
-      {tasks.length > 0 && !searchQuery.trim() && (filterFrog || filterPriority !== 'all') && tasks.filter(t => (!filterFrog || t.isFrog) && (filterPriority === 'all' || t.priority === filterPriority)).length === 0 && (
+      {tasks.length > 0 && !searchQuery.trim() && (filterFrog || filterPriority !== 'all') && tasks.filter(t => !isTaskArchived(t) && (!filterFrog || t.isFrog) && (filterPriority === 'all' || t.priority === filterPriority)).length === 0 && (
         <div className="mt-4 bg-amber-900/30 border border-amber-600/50 rounded-lg px-4 py-2 text-amber-200 text-sm">
           No tasks match the current filters. Try &quot;All&quot; or turn off &quot;Frogs Only&quot;.
         </div>
